@@ -75,3 +75,43 @@ h = MLP(input_h, 4, 4)
 print(h)
 
 
+class Module2(nn.Module):
+    """
+    Creates a NN using nn.ModuleList to automatically adjust the number of layers.
+    Allows the user to customize the number of nodes at each hidden layer.
+
+    Inputs:
+        h_sizes (list):             number of features input to each layer. 
+                                    length of h_sizes will determine the number of layesr.
+        out_dim (int):              number of features in the final output from the network.
+        activation (torch function): activation function to be used during the hidden layers
+
+    """
+    def __init__(self, h_sizes, out_dim, activation=torch.nn.ReLU()):
+        super(Module2, self).__init__()
+        self.layers = nn.ModuleList()
+        num_layers = len(h_sizes)
+        
+        # create hidden layers
+        for k in range(num_layers - 1):
+            self.layers.append(nn.Linear(h_sizes[k], h_sizes[k+1]))
+            self.layers.append(activation)
+        
+        # create output layer
+        # could also just have out_dim be the last entry in h_sizes
+        self.layers.append(nn.Linear(h_sizes[-1], out_dim))
+        # self.layers.append(nn.Linear(dIn, dOut))  # linear output
+        self.layers.append(torch.nn.Sigmoid())    # sigmoid output
+        # self.layers.append(torch.nn.Tanh())       # tanh output
+        
+    def forward(self, x):
+        y = x
+        for i in range(len(self.layers)):
+            y = self.layers[i](y)
+        return y
+
+# test the MLP
+mlp = Module2([2, 5, 55, 6, 6, 7], 5)
+print(mlp)
+print(mlp(torch.from_numpy(np.array([4,5])).float()))
+
