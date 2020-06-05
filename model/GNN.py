@@ -4,6 +4,26 @@ import torch.nn.functional as F
 import numpy as np
 
 
+def MLP(input_h, num_layers, out_dim, activation=torch.nn.ReLU()):
+    """
+    Create a variable layer perceptron algorithm with default ReLU activation.
+
+    Inputs:
+        input_h (np array):         1D np array to pass through the network.
+        num_layers (int):           number of layers in the network.
+        out_dim (int):              number of features input and output from each hidden layer, 
+                                    including the output layer.
+        activation (torch function): activation function to be used during the hidden layers
+    """
+    in_dim = input_h.shape[0]
+
+    model = Module1(in_dim, out_dim, num_layers, activation=activation)
+
+    h = model(torch.from_numpy(input_h).float())
+
+    return h
+
+
 class Module1(nn.Module):
     """
     Creates a NN using nn.ModuleList to automatically adjust the number of layers.
@@ -47,3 +67,11 @@ class Module1(nn.Module):
 mlp = Module1(4,3,6)
 print(mlp)
 mlp(torch.from_numpy(np.array([4,5,6,7])).float())
+
+
+# test the MLP using the function that calls the pytorch class
+input_h = np.array([1, 2, 3, 4, 5])
+h = MLP(input_h, 4, 4)
+print(h)
+
+
