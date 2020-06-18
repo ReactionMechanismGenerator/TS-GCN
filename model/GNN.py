@@ -8,7 +8,7 @@ from torch_scatter import scatter_sum
 from torch_geometric.nn import MetaLayer
 
 
-def MLP(input_h, num_layers, out_dim, activation=torch.nn.ReLU()):
+def MLP(in_dim, num_layers, out_dim, activation=torch.nn.ReLU()):
     """
     Create a variable layer perceptron algorithm with default ReLU activation.
 
@@ -19,8 +19,6 @@ def MLP(input_h, num_layers, out_dim, activation=torch.nn.ReLU()):
                                     including the output layer.
         activation (torch function): activation function to be used during the hidden layers
     """
-    in_dim = input_h.shape[0]
-
     model = Module1(in_dim, out_dim, num_layers, activation=activation)
 
     h = model(torch.from_numpy(input_h).float())
