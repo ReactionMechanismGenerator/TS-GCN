@@ -3,6 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+from torch.nn import Sequential as Seq, Linear as Lin, ReLU
+from torch_scatter import scatter_sum
+from torch_geometric.nn import MetaLayer
+
 
 def MLP(input_h, num_layers, out_dim, activation=torch.nn.ReLU()):
     """
@@ -115,3 +119,59 @@ mlp = Module2([2, 5, 55, 6, 6, 7], 5)
 print(mlp)
 print(mlp(torch.from_numpy(np.array([4,5])).float()))
 
+
+class EdgeModel(nn.Module):
+    def __init__(self, hidden_dim, n_layers):
+        super(EdgeModel, self).__init__()
+        self.edge = Lin(hidden_dim, hidden_dim)
+        self.node_in = Lin(hidden_dim, hidden_dim)
+        self.node_out = Lin(hidden_dim, hidden_dim)
+        self.mlp = MLP(hidden_dim, n_layers, hidden_dim)
+
+    def forward(self, src, tgt, edge_attr, u, batch):
+        # source, target: [E, h], where E is the number of edges.
+        # edge_attr: [E, h]
+        # u: [B, h], where B is the number of graphs (we don't have any of these yet)
+        # batch: [E] with max entry B - 1.
+
+        f_ij = self.edge(edge_attr)
+        f_i = self.node_in(src)
+        f_j = self.node_out(tgt)
+
+        out = F.relu(f_ij + f_i + f_j)
+        return self.mlp(out)
+
+
+class NodeModel(nn.Module):
+    def __init__(self, hidden_dim, n_layers):
+        super(NodeModel, self).__init__()
+        self.node_mlp_1 = MLP(hidden_dim, n_layers, hidden_dim)
+        self.node_mlp_2 = MLP(hidden_dim, n_layers, hidden_dim)
+
+    def forward(self, x, edge_index, edge_attr, u, batch):
+        # x: [N, h], where N is the number of nodes.
+        # edge_index: [2, E] with max entry N - 1.
+        # edge_attr: [E, h]
+        # u: [B, F_u] (N/A)
+        # batch: [N] with max entry B - 1.
+        _, col = edge_index
+        out = self.node_mlp_1(edge_attr)
+        out = scatter_sum(out, col, dim=0, dim_size=x.size(0))
+        return self.node_mlp_2(out)
+
+
+class GNN(nn.Module):
+    def __init__(self, node_dim, edge_dim, hidden_dim=300, depth=3, n_layers=2):
+        super(GNN, self).__init__()
+        self.depth = depth
+        self.node_init = Lin(node_dim, hidden_dim)
+        self.edge_init = Lin(edge_dim, hidden_dim)
+        self.update = MetaLayer(EdgeModel(hidden_dim, n_layers), NodeModel(hidden_dim, n_layers))
+
+    def forward(self, x, edge_index, edge_attr):
+
+        x = self.node_init(x)
+        edge_attr = self.edge_init(edge_attr)
+        for _ in range(self.depth):
+            x, edge_attr, _ = self.update(x, edge_index, edge_attr)
+        return x, edge_attr
