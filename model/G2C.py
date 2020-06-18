@@ -1,12 +1,13 @@
 import numpy as np
 import torch
+from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.nn import Linear
 from torch.nn import BatchNorm1d
 from torch_geometric.nn import GCNConv
 
 # used to access the updated GCN later
-import GNN
+from GNN import GCNConv, MLP
 
 
 # define dense net
@@ -89,7 +90,7 @@ class CombinedNN(torch.nn.Module):
         #                          'hidden_layers':100
         #                          # etc. add other inputs here
         #                          }
-        # self.gcn = GNN.GCNConv(**initialization_params)
+        # self.gcn = GCNConv(**initialization_params)
         initialization_params = {'input_features': 75,
                                  'hidden_nodes': 100
                                  }
@@ -97,7 +98,7 @@ class CombinedNN(torch.nn.Module):
 
         # could also use GNN.Module1 to create MLP with customizable number of layers
         initialization_params = {'hidden_nodes': 100,
-                                     'output_size': 3
+                                 'output_size': 3
                                  }
         self.fc = DenseNet(**initialization_params)
 
@@ -111,4 +112,149 @@ class CombinedNN(torch.nn.Module):
         """
         x = self.gcn(data)
         x = self.fc(x)
+        # or use the MLP
+        # x = MLP(x, num_layers, out_dim)
+
+        # x = dist_nlsq(D, W, )
         return x
+
+def distance_to_gram(D, mask):
+    """Convert distance matrix to gram matrix"""
+    # D shape is (batch, 21, 21)
+    # mask is (batch, 21, 21)
+    # N_f32 is (batch,)
+    # N_f32, [-1,1,1]) is (batch, 1, 1)
+    Nf32 = torch.nonzero.sum(mask)  # number of atoms in each batch
+    D = torch.square(D)
+    D_row = torch.sum(D, dim=1, keepdim=True)
+    D_col = torch.sum(D, dim=2, keepdim=True)
+    D_mean = torch.sum(D, dim=[1,2], keepdim=True)
+    G = mask * -0.5 * (D - D_row - D_col + D_mean)
+    return G
+
+def low_rank_approx_power(A, k=3, num_steps=10):
+    A_lr = A    # A shape (batch, 21, 21)
+    u_set = []
+    for kx in range(k):
+        # initialize eigenvector. u shape (1, 21, 1)
+        u = torch.unsqueeze(torch.normal(mean=0, std=1, size=A.shape[:-1]), dim=-1)
+        # power iteration
+        for j in range(num_steps):
+            u = F.normalize(u, dim=1, p=2, eps=1e-3)
+            u = torch.matmul(A_lr, u)
+        # rescale by scalar value sqrt(eigenvalue)
+        eig_sq = torch.sum(torch.square(u), dim=1, keepdim=True)    # eig_sq shape (1,1,1)
+        # normalization step
+        u = u/ torch.pow(eig_sq + 1e-2, 0.25)   # u shape (batch, 21, 1)
+        u_set.append(u)
+        # transpose columns 1 and 2 so that torch.matmul(u, u.transpose(1,2)) has shape (batch, 21, 21)
+        A_lr = A_lr - torch.matmul(u, u.transpose(1,2)) # A_lr shape (batch, 21, 21)
+
+    X = torch.cat(tensors=u_set, dim=2)         # X shape (1, 21, 3)
+    return X
+
+def dist_nlsq(D, W, mask):
+    """
+    Solve a nonlinear distance geometry problem by nonlinear least squares
+
+    Objective is Sum_ij w_ij (D_ij - |x_i - x_j|)^2
+    """
+    # D is (batch, 21, 21)
+    # W is (batch, 21, 21)
+    # mask is (batch, 21, 21)
+
+    T = 100
+    eps = 0.1
+    alpha = 5.0
+    alpha_base = 0.1
+
+    def gradfun(X):
+        """ Grad function """
+        # X is (batch, 21, 3)
+        # must make X a variable to use autograd
+        X = Variable(X, requires_grad=True)
+
+        D_X = distances(X)  # D_X is (batch, 21, 21)
+
+        # Energy calculation
+        U = torch.sum(mask * W * torch.square(D - D_X), dim=[1, 2]) / torch.sum(mask, dim=[1, 2])
+        U = torch.sum(U)  # U is a scalar
+
+        # Gradient calculation
+        # U = Variable(U, requires_grad=True)
+        g = torch.autograd.grad(U, X)[0]
+        return g
+
+
+    def stepfun(t, x_t):
+        """Step function"""
+        # x_t is (?, 21, 3)
+        g = gradfun(x_t)
+        dx = -eps * g  # (?, 21, 3)
+
+        # Speed clipping (How fast in Angstroms)
+        speed = torch.sqrt(torch.sum(torch.square(dx), dim=2, keepdim=True) + 1E-3) # (batch, 21, 3)
+
+        # Alpha sets max speed (soft trust region)
+        alpha_t = alpha_base + (alpha - alpha_base) * torch.tensor((T - t) / T).float()
+        scale = alpha_t * torch.tanh(speed / alpha_t) / speed  # (batch, 21, 1)
+        dx *= scale  # (batch, 21, 3)
+
+        x_new = x_t + dx
+
+        return t + 1, x_new
+
+    # intial guess for X
+    # D is (batch, 21, 21)
+    # mask is (batch, 21, 21)
+    B = distance_to_gram(D, mask)       # B is (batch, 21, 21)
+    x_init = low_rank_approx_power(B)   # x_init is (batch, 21, 3)
+
+    # prepare simulation
+    max_size = 21
+    x_init += torch.normal(mean=0, std=1, size=[D.shape[0], max_size, 3])
+
+    # Optimization loop
+    t=0
+    x = x_init
+    while t < T:
+       t, x = stepfun(t, x)
+
+    return x
+
+# currently not used
+def rmsd(X1, X2, mask_V):
+    """RMSD between 2 structures"""
+    # note: in torch, sum and mean automatically reduce dimensions
+    X1 = X1 - torch.sum(mask_V * X1,dim=1,keepdim=True) \
+                / torch.sum(mask_V, dim=1,keepdim=True)
+    X2 = X2 - torch.sum(mask_V * X2, dim=1, keepdim=True) \
+         / torch.sum(mask_V, dim=1, keepdim=True)
+
+    X1 *= mask_V
+    X2 *= mask_V
+
+    eps = 1E-2
+
+    X1_perturb = X1 + eps * torch.normal(mean=0, std=1, size=X1.shape)
+    # or use random normal ~N(0, 1)
+    X2_perturb = X2 + eps * torch.randn(X2.shape)
+    A = torch.matmul(X1_perturb.T, X2_perturb)
+    S, U, V = torch.svd(A)  # default arguments are: some=True, compute_uv=True
+
+    X1_align = torch.matmul(U, torch.matmul(V, X1.T))
+    X1_align = X1_align.permute(0, 2, 1)
+
+    MSD = torch.sum(mask_V * torch.square(X1_align - X2), [1, 2]) \
+          / torch.sum(mask_V, [1, 2])
+    RMSD = torch.mean(torch.sqrt(MSD + 1E-3))
+    return RMSD, X1_align
+
+def distances(X):
+    """Compute Euclidean distance from X"""
+    # X is (batch, 21, 3)
+    # D is (batch, 21, 21)
+
+    Dsq = torch.square(torch.unsqueeze(X, 1) - torch.unsqueeze(X, 2))
+    D = torch.sqrt(torch.sum(Dsq, dim=3) + 1E-2)
+    return D
