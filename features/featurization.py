@@ -4,17 +4,16 @@ from typing import List, Tuple, Union
 
 from rdkit import Chem
 from rdkit.Chem.rdchem import ChiralType
-from .utils import read_sdf
 
 import torch
 import numpy as np
-import pandas as pd
+import glob
 
 import torch_geometric as tg
 from torch_geometric.data import Dataset, DataLoader
 
 # Atom feature sizes
-MAX_ATOMIC_NUM = 100
+MAX_ATOMIC_NUM = 10
 ATOM_FEATURES = {
     'atomic_num': list(range(MAX_ATOMIC_NUM)),
     'degree': [0, 1, 2, 3, 4, 5],
@@ -38,7 +37,7 @@ CHIRALTAG_PARITY = {
 
 # len(choices) + 1 to include room for uncommon values; + 2 at end for IsAromatic and mass
 ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2
-BOND_FDIM = 14 + 2 # was 14, removed GetStereo()  added 2 for cis/trans
+BOND_FDIM = 7
 
 
 def get_atom_fdim(args: Namespace) -> int:
@@ -80,13 +79,13 @@ def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -
     :return: A list containing the atom features.
     """
     features = onek_encoding_unk(atom.GetAtomicNum() - 1, ATOM_FEATURES['atomic_num']) + \
-           onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
-           onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
-           onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag'])
-    features +=  onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
-           onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
-           [1 if atom.GetIsAromatic() else 0] + \
-           [atom.GetMass() * 0.01]  # scaled to about the same range as other features
+        [1 if atom.GetIsAromatic() else 0] + \
+        [atom.GetMass() * 0.01]  # scaled to about the same range as other features
+    #        onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
+    #        onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
+    #        onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag'])
+    # features +=  onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
+    #        onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
     if functional_groups is not None:
         features += functional_groups
     return features
@@ -120,8 +119,8 @@ def bond_features(bond: Chem.rdchem.Bond) -> List[Union[bool, int, float]]:
             (bond.GetIsConjugated() if bt is not None else 0),
             (bond.IsInRing() if bt is not None else 0)
         ]
-        fbond += onek_encoding_unk(int(bond.GetStereo()), list(range(6))) # remove global cis/trans tags
-        fbond += [0, 0] # special cis/trans message edge type
+        # fbond += onek_encoding_unk(int(bond.GetStereo()), list(range(6))) # remove global cis/trans tags
+        # fbond += [0, 0] # special cis/trans message edge type
     return fbond
 
 
@@ -151,7 +150,7 @@ class MolGraph:
     - b2revb: A mapping from a bond index to the index of the reverse bond.
     """
 
-    def __init__(self, smiles: str, args: Namespace):
+    def __init__(self, mols: str, args: Namespace):
         """
         Computes the graph structure and featurization of a molecule.
         :param smiles: A smiles string.
@@ -168,50 +167,83 @@ class MolGraph:
         self.parity_atoms = []  # mapping from atom index to CW (+1), CCW (-1) or undefined tetra (0)
         self.edge_index = []  # list of tuples indicating presence of bonds
 
-        # Convert smiles to molecule
-        mol = Chem.MolFromSmiles(smiles)
+        # extract reactant, ts, product
+        r_mol, _, p_mol = mols
 
         # fake the number of "atoms" if we are collapsing substructures
-        self.n_atoms = mol.GetNumAtoms()
-        
-        # Get atom features
-        for i, atom in enumerate(mol.GetAtoms()):
-            self.f_atoms.append(atom_features(atom))
-            self.parity_atoms.append(parity_features(atom))
-        self.f_atoms = [self.f_atoms[i] for i in range(self.n_atoms)]
+        n_atoms = r_mol.GetNumAtoms()
 
-        for _ in range(self.n_atoms):
-            self.a2b.append([])
+        # topological and 3d distance matrices
+        tD_r = Chem.GetDistanceMatrix(r_mol)
+        tD_p = Chem.GetDistanceMatrix(p_mol)
+        D_r = Chem.Get3DDistanceMatrix(r_mol)
+        D_p = Chem.Get3DDistanceMatrix(p_mol)
 
-        # Get bond features
-        for a1 in range(self.n_atoms):
-            for a2 in range(a1 + 1, self.n_atoms):
-                bond = mol.GetBondBetweenAtoms(a1, a2)
+        # temporary featurization
+        for a1 in range(n_atoms):
 
-                if bond is None:
-                    continue
-                    
+            # Node features
+            self.f_atoms.append(atom_features(r_mol.GetAtomWithIdx(a1)))
+
+            # Edge features
+            for a2 in range(a1 + 1, n_atoms):
+                # fully connected graph
                 self.edge_index.extend([(a1, a2), (a2, a1)])
 
-                f_bond = bond_features(bond)
+                # for now, naively include both reac and prod
+                b1_feats = [D_r[a1][a2], D_p[a1][a2]]
+                b2_feats = [D_r[a2][a1], D_p[a2][a1]]
 
-                if args.atom_messages:
-                    self.f_bonds.append(f_bond)
-                    self.f_bonds.append(f_bond)
-                else:
-                    self.f_bonds.append(self.f_atoms[a1] + f_bond)
-                    self.f_bonds.append(self.f_atoms[a2] + f_bond)
+                r_bond = r_mol.GetBondBetweenAtoms(a1, a2)
+                b1_feats.extend(bond_features(r_bond))
+                b2_feats.extend(bond_features(r_bond))
 
-                # Update index mappings
-                b1 = self.n_bonds
-                b2 = b1 + 1
-                self.a2b[a2].append(b1)  # b1 = a1 --> a2
-                self.b2a.append(a1)
-                self.a2b[a1].append(b2)  # b2 = a2 --> a1
-                self.b2a.append(a2)
-                self.b2revb.append(b2)
-                self.b2revb.append(b1)
-                self.n_bonds += 2
+                p_bond = p_mol.GetBondBetweenAtoms(a1, a2)
+                b1_feats.extend(bond_features(p_bond))
+                b2_feats.extend(bond_features(p_bond))
+
+                self.f_bonds.append(b1_feats)
+                self.f_bonds.append(b2_feats)
+
+
+        # Get atom features
+        # for i, atom in enumerate(mol.GetAtoms()):
+        #     self.f_atoms.append(atom_features(atom))
+        #     self.parity_atoms.append(parity_features(atom))
+        # self.f_atoms = [self.f_atoms[i] for i in range(self.n_atoms)]
+        #
+        # for _ in range(self.n_atoms):
+        #     self.a2b.append([])
+        #
+        # # Get bond features
+        # for a1 in range(self.n_atoms):
+        #     for a2 in range(a1 + 1, self.n_atoms):
+        #         bond = mol.GetBondBetweenAtoms(a1, a2)
+        #
+        #         if bond is None:
+        #             continue
+        #
+        #         self.edge_index.extend([(a1, a2), (a2, a1)])
+        #
+        #         f_bond = bond_features(bond)
+        #
+        #         if args.atom_messages:
+        #             self.f_bonds.append(f_bond)
+        #             self.f_bonds.append(f_bond)
+        #         else:
+        #             self.f_bonds.append(self.f_atoms[a1] + f_bond)
+        #             self.f_bonds.append(self.f_atoms[a2] + f_bond)
+        #
+        #         # Update index mappings
+        #         b1 = self.n_bonds
+        #         b2 = b1 + 1
+        #         self.a2b[a2].append(b1)  # b1 = a1 --> a2
+        #         self.b2a.append(a1)
+        #         self.a2b[a1].append(b2)  # b2 = a2 --> a1
+        #         self.b2a.append(a2)
+        #         self.b2revb.append(b2)
+        #         self.b2revb.append(b1)
+        #         self.n_bonds += 2
 
 
     def get_components(self) -> Tuple[torch.FloatTensor, torch.FloatTensor,
@@ -255,7 +287,7 @@ class MolGraph:
 
 class MolDataset(Dataset):
 
-    def __init__(self, smiles, labels, args, mode='train'):
+    def __init__(self, sdf_dir, args, mode='train'):
         super(MolDataset, self).__init__()
 
         if args.split_path:
@@ -263,44 +295,49 @@ class MolDataset(Dataset):
             self.split = np.load(args.split_path, allow_pickle=True)[self.split_idx]
         else:
             self.split = list(range(len(smiles)))  # fix this
-        self.smiles = [smiles[i] for i in self.split]
-        self.labels = [labels[i] for i in self.split]
-        self.data_map = {k: v for k, v in zip(range(len(self.smiles)), self.split)}
+
+        self.sdf_dir = sdf_dir
+        self.mols = self.get_mols()
         self.args = args
 
-        if mode == 'train':
-            self.mean = np.mean(self.labels)
-            self.std = np.std(self.labels)
-
-        if args.confs_dir:
-            self.confs_dir = args.confs_dir
-            self.zfill = len(os.listdir(self.confs_dir)[0].split('.')[0])
-
     def process_key(self, key):
-        smi = self.smiles[key]
-        molgraph = MolGraph(smi, self.args)
-        mol = self.molgraph2data(molgraph, key)
-        return mol
+        molgraph = MolGraph(self.mols[key], self.args)
+        mol_data = self.molgraph2data(molgraph, key)
+        return mol_data
 
     def molgraph2data(self, molgraph, key):
         data = tg.data.Data()
         data.x = torch.tensor(molgraph.f_atoms, dtype=torch.float)
         data.edge_index = torch.tensor(molgraph.edge_index, dtype=torch.long).t().contiguous()
         data.edge_attr = torch.tensor(molgraph.f_bonds, dtype=torch.float)
-        data.y = torch.tensor([self.labels[key]], dtype=torch.float)
+        _, ts, _ = self.mols[key]
+        data.y = torch.tensor(Chem.Get3DDistanceMatrix(ts), dtype=torch.float)
 
-        if self.args.confs_dir:
-            path = os.path.join(self.confs_dir, f'{self.data_map[key]}'.zfill(self.zfill) + '.sdf')
-            pos, sym = read_sdf(path, n=1)[0]
-            assert [a.GetSymbol() for a in Chem.MolFromSmiles(self.smiles[key]).GetAtoms()] == sym  # ordering
-            pos = torch.tensor(pos)
-            data.pos = pos - pos.mean(dim=0)
-            data.atoms = torch.tensor([a.GetAtomicNum() for a in Chem.MolFromSmiles(self.smiles[key]).GetAtoms()])
+        #         if self.args.confs_dir:
+        #             path = os.path.join(self.confs_dir, f'{self.data_map[key]}'.zfill(self.zfill) + '.sdf')
+        #             pos, sym = read_sdf(path, n=1)[0]
+        #             assert [a.GetSymbol() for a in Chem.MolFromSmiles(self.smiles[key]).GetAtoms()] == sym  # ordering
+        #             pos = torch.tensor(pos)
+        #             data.pos = pos - pos.mean(dim=0)
+        #             data.atoms = torch.tensor([a.GetAtomicNum() for a in Chem.MolFromSmiles(self.smiles[key]).GetAtoms()])
 
         return data
 
+    def get_mols(self):
+
+        r_file = glob.glob(os.path.join(self.sdf_dir, '*reactants*'))[0]
+        ts_file = glob.glob(os.path.join(self.sdf_dir, '*ts*'))[0]
+        p_file = glob.glob(os.path.join(self.sdf_dir, '*products*'))[0]
+
+        data = [Chem.SDMolSupplier(r_file, removeHs=False, sanitize=False),
+                Chem.SDMolSupplier(ts_file, removeHs=False, sanitize=False),
+                Chem.SDMolSupplier(p_file, removeHs=False, sanitize=False)]
+
+        data = [(x, y, z) for (x, y, z) in zip(data[0], data[1], data[2]) if (x, y, z)]
+        return [data[i] for i in self.split]
+
     def __len__(self):
-        return len(self.smiles)
+        return len(self.mols)
 
     def __getitem__(self, key):
         return self.process_key(key)
@@ -311,14 +348,9 @@ def construct_loader(args, modes=('train', 'val')):
     if isinstance(modes, str):
         modes = [modes]
 
-    data_df = pd.read_csv(args.data_path)
-
-    smiles = data_df.iloc[:, 0].values
-    labels = data_df.iloc[:, 1].values.astype(np.float32)
-
     loaders = []
     for mode in modes:
-        dataset = MolDataset(smiles, labels, args, mode)
+        dataset = MolDataset(args.sdf_dir, args, mode)
         loader = DataLoader(dataset=dataset,
                             batch_size=args.batch_size,
                             shuffle=True if mode == 'train' else False,
