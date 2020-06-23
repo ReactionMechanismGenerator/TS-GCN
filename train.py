@@ -46,7 +46,7 @@ loss = torch.nn.MSELoss(reduction='sum')
 # or use MAE loss
 # todo access mask from data.batch attribute to reflect the previous implementation
 # self.loss_distance_all = self.masks["D"] * tf.abs(D_model - D_target)
-torch.nn.L1Loss(reduction='mean')  # MAE
+torch.nn.L1Loss(reduction='sum')  # MAE
 
 best_val_loss = math.inf
 best_epoch = 0

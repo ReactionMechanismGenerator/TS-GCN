@@ -126,27 +126,29 @@ class G2C(torch.nn.Module):
         self.gnn = GNN(node_dim, edge_dim, hidden_dim, depth, n_layers)
         self.edge_mlp = MLP(hidden_dim, hidden_dim, n_layers)
         self.pred = Linear(hidden_dim, 2)
+        self.act = torch.nn.Softplus()
 
     def forward(self, data):
-
+        torch.autograd.set_detect_anomaly(True)
         _, edge_attr = self.gnn(data.x, data.edge_index, data.edge_attr)
         edge_embed = self.edge_mlp(edge_attr)
         edge_pred = self.pred(edge_embed)
         edge_pred = tg.utils.to_dense_adj(data.edge_index, data.batch, edge_pred)
 
         # mask
-        mask = tg.utils.to_dense_adj(data.edge_index, data.batch)  # diagonals are masked too
+        diag_mask = tg.utils.to_dense_adj(data.edge_index, data.batch)  # diagonals are masked too
         edge_pred = edge_pred + edge_pred.permute([0, 2, 1, 3])
 
-        D = F.softplus(edge_pred[:, :, :, 0]) * mask
-        W = F.softplus(edge_pred[:, :, :, 0]) * mask
+        preds = self.act(edge_pred) * diag_mask.unsqueeze(-1)
+        D, W = preds.split(1, dim=-1)
 
         N_fill = torch.cat([torch.arange(x) for x in data.batch.bincount()])
+        mask = diag_mask.clone()
         mask[data.batch, N_fill, N_fill] = 1  # fill diagonals
 
-        X = self.dist_nlsq(D, W, mask)
+        X = self.dist_nlsq(D.squeeze(-1), W.squeeze(-1), mask)
 
-        return X
+        return diag_mask*self.distances(X), diag_mask
 
 
     def distance_to_gram(self, D, mask):

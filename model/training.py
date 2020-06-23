@@ -6,6 +6,7 @@ import numpy as np
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 import torch.nn as nn
+from torch_geometric.utils import to_dense_adj
 
 
 def train(model, loader, optimizer, loss, device, scheduler):
@@ -16,8 +17,8 @@ def train(model, loader, optimizer, loss, device, scheduler):
         data = data.to(device)
         optimizer.zero_grad()
 
-        out = model(data)
-        result = loss(out, data.y)
+        out, mask = model(data)
+        result = loss(out, to_dense_adj(data.edge_index, data.batch, data.y)) / mask.sum()
         result.backward()
 
         # clip the gradients
@@ -26,7 +27,7 @@ def train(model, loader, optimizer, loss, device, scheduler):
         optimizer.step()
         if isinstance(scheduler, NoamLR):
             scheduler.step()
-        loss_all += loss(out, data.y)
+        loss_all += result.item()
 
     return math.sqrt(loss_all / len(loader.dataset))  # rmse
 
@@ -38,7 +39,8 @@ def test(model, loader, loss, device):
     for data in tqdm(loader):
         data = data.to(device)
         out = model(data)
-        error += loss(out, data.y).item()
+        result = loss(out, to_dense_adj(data.edge_index, data.batch, data.y)) / mask.sum()
+        error += result.item()
 
 
 class NoamLR(_LRScheduler):
