@@ -156,7 +156,6 @@ class MolGraph:
         :param smiles: A smiles string.
         :param args: Arguments.
         """
-        self.smiles = smiles
         self.n_atoms = 0  # number of atoms
         self.n_bonds = 0  # number of bonds
         self.f_atoms = []  # mapping from atom index to atom features
@@ -166,9 +165,10 @@ class MolGraph:
         self.b2revb = []  # mapping from bond index to the index of the reverse bond
         self.parity_atoms = []  # mapping from atom index to CW (+1), CCW (-1) or undefined tetra (0)
         self.edge_index = []  # list of tuples indicating presence of bonds
+        self.y = []
 
         # extract reactant, ts, product
-        r_mol, _, p_mol = mols
+        r_mol, ts_mol, p_mol = mols
 
         # fake the number of "atoms" if we are collapsing substructures
         n_atoms = r_mol.GetNumAtoms()
@@ -178,6 +178,7 @@ class MolGraph:
         tD_p = Chem.GetDistanceMatrix(p_mol)
         D_r = Chem.Get3DDistanceMatrix(r_mol)
         D_p = Chem.Get3DDistanceMatrix(p_mol)
+        D_ts = Chem.Get3DDistanceMatrix(ts_mol)
 
         # temporary featurization
         for a1 in range(n_atoms):
@@ -204,6 +205,7 @@ class MolGraph:
 
                 self.f_bonds.append(b1_feats)
                 self.f_bonds.append(b2_feats)
+                self.y.extend([D_ts[a1][a2], D_ts[a2][a1]])
 
 
         # Get atom features
@@ -311,7 +313,7 @@ class MolDataset(Dataset):
         data.edge_index = torch.tensor(molgraph.edge_index, dtype=torch.long).t().contiguous()
         data.edge_attr = torch.tensor(molgraph.f_bonds, dtype=torch.float)
         _, ts, _ = self.mols[key]
-        data.y = torch.tensor(Chem.Get3DDistanceMatrix(ts), dtype=torch.float)
+        data.y = torch.tensor(molgraph.y, dtype=torch.float)
 
         #         if self.args.confs_dir:
         #             path = os.path.join(self.confs_dir, f'{self.data_map[key]}'.zfill(self.zfill) + '.sdf')
