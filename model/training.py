@@ -38,7 +38,7 @@ def test(model, loader, loss, device):
 
     for data in tqdm(loader):
         data = data.to(device)
-        out = model(data)
+        out, mask = model(data)
         result = loss(out, to_dense_adj(data.edge_index, data.batch, data.y)) / mask.sum()
         error += result.item()
 
