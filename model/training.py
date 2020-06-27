@@ -42,6 +42,9 @@ def test(model, loader, loss, device):
         result = loss(out, to_dense_adj(data.edge_index, data.batch, data.y)) / mask.sum()
         error += result.item()
 
+    # divides by number of molecules
+    return math.sqrt(error / len(loader.dataset))  # rmse
+
 
 class NoamLR(_LRScheduler):
     """
