@@ -9,6 +9,7 @@ from torch_geometric.nn import GCNConv
 # used to access the updated GCN later
 from model.GNN import GNN, MLP
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # define dense net
 class DenseNet(torch.nn.Module):
@@ -172,7 +173,7 @@ class G2C(torch.nn.Module):
         u_set = []
         for kx in range(k):
             # initialize eigenvector. u shape (1, 21, 1)
-            u = torch.unsqueeze(torch.normal(mean=0, std=1, size=A.shape[:-1]), dim=-1)
+            u = torch.unsqueeze(torch.normal(mean=0, std=1, size=A.shape[:-1]), dim=-1).to(device)
             # power iteration
             for j in range(num_steps):
                 u = F.normalize(u, dim=1, p=2, eps=1e-3)
@@ -247,7 +248,7 @@ class G2C(torch.nn.Module):
 
         # prepare simulation
         max_size = D.size(1)
-        x_init += torch.normal(mean=0, std=1, size=[D.shape[0], max_size, 3])
+        x_init += torch.normal(mean=0, std=1, size=[D.shape[0], max_size, 3]).to(device)
 
         # Optimization loop
         t=0
