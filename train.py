@@ -59,7 +59,7 @@ for epoch in range(1, args.n_epochs):
     val_loss = test(model, val_loader, loss, device)
     logger.info("Epoch {}: Validation Loss {}".format(epoch, val_loss))
     if not isinstance(scheduler, NoamLR):
-        scheduler.step()
+        scheduler.step(val_loss)
 
     if val_loss <= best_val_loss:
         best_val_loss = val_loss
