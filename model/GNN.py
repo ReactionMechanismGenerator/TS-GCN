@@ -8,24 +8,6 @@ from torch_scatter import scatter_sum
 from torch_geometric.nn import MetaLayer
 
 
-# def MLP(in_dim, num_layers, out_dim, activation=torch.nn.ReLU()):
-#     """
-#     Create a variable layer perceptron algorithm with default ReLU activation.
-#
-#     Inputs:
-#         input_h (np array):         1D np array to pass through the network.
-#         num_layers (int):           number of layers in the network.
-#         out_dim (int):              number of features input and output from each hidden layer,
-#                                     including the output layer.
-#         activation (torch function): activation function to be used during the hidden layers
-#     """
-#     model = Module1(in_dim, out_dim, num_layers, activation=activation)
-#
-#     h = model(torch.from_numpy(input_h).float())
-#
-#     return h
-
-
 class MLP(nn.Module):
     """
     Creates a NN using nn.ModuleList to automatically adjust the number of layers.
@@ -69,12 +51,6 @@ class MLP(nn.Module):
 # mlp = Module1(4,3,6)
 # print(mlp)
 # mlp(torch.from_numpy(np.array([4,5,6,7])).float())
-#
-#
-# # test the MLP using the function that calls the pytorch class
-# input_h = np.array([1, 2, 3, 4, 5])
-# h = MLP(input_h, 4, 4)
-# print(h)
 
 
 class Module2(nn.Module):
@@ -84,7 +60,7 @@ class Module2(nn.Module):
 
     Inputs:
         h_sizes (list):             number of features input to each layer. 
-                                    length of h_sizes will determine the number of layesr.
+                                    length of h_sizes will determine the number of layers.
         out_dim (int):              number of features in the final output from the network.
         activation (torch function): activation function to be used during the hidden layers
 
@@ -113,9 +89,9 @@ class Module2(nn.Module):
         return y
 
 # test the MLP
-mlp = Module2([2, 5, 55, 6, 6, 7], 5)
-print(mlp)
-print(mlp(torch.from_numpy(np.array([4,5])).float()))
+# mlp = Module2([2, 5, 55, 6, 6, 7], 5)
+# print(mlp)
+# print(mlp(torch.from_numpy(np.array([4,5])).float()))
 
 
 class EdgeModel(nn.Module):
@@ -127,9 +103,9 @@ class EdgeModel(nn.Module):
         self.mlp = MLP(hidden_dim, hidden_dim, n_layers)
 
     def forward(self, src, tgt, edge_attr, u, batch):
-        # source, target: [E, h], where E is the number of edges.
-        # edge_attr: [E, h]
-        # u: [B, h], where B is the number of graphs (we don't have any of these yet)
+        # source, target: [2, E], where E is the number of edges.
+        # edge_attr: [E, F_e]
+        # u: [B, F_u], where B is the number of graphs (we don't have any of these yet)
         # batch: [E] with max entry B - 1.
 
         f_ij = self.edge(edge_attr)
@@ -149,9 +125,10 @@ class NodeModel(nn.Module):
     def forward(self, x, edge_index, edge_attr, u, batch):
         # x: [N, h], where N is the number of nodes.
         # edge_index: [2, E] with max entry N - 1.
-        # edge_attr: [E, h]
+        # edge_attr: [E, F_e]
         # u: [B, F_u] (N/A)
         # batch: [N] with max entry B - 1.
+        # source, target = edge_index
         _, col = edge_index
         out = self.node_mlp_1(edge_attr)
         out = scatter_sum(out, col, dim=0, dim_size=x.size(0))

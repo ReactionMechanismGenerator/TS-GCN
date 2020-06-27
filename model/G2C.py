@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
@@ -129,16 +128,19 @@ class G2C(torch.nn.Module):
         self.act = torch.nn.Softplus()
 
     def forward(self, data):
-        torch.autograd.set_detect_anomaly(True)
+        # torch.autograd.set_detect_anomaly(True)   # use only when debugging
+        # get updated edge attributes. edge_attr: [E, F_e]
         _, edge_attr = self.gnn(data.x, data.edge_index, data.edge_attr)
         edge_embed = self.edge_mlp(edge_attr)
-        edge_pred = self.pred(edge_embed)
-        edge_pred = tg.utils.to_dense_adj(data.edge_index, data.batch, edge_pred)
+        # make prediction of distance matrix and weight matrix
+        edge_pred = self.pred(edge_embed)   # shape: E x 2
+        edge_pred = tg.utils.to_dense_adj(data.edge_index, data.batch, edge_pred)   # shape: b x N x N x 2
 
         # mask
-        diag_mask = tg.utils.to_dense_adj(data.edge_index, data.batch)  # diagonals are masked too
+        diag_mask = tg.utils.to_dense_adj(data.edge_index, data.batch)  # diagonals are masked too i.e. 0s along diagonal
         edge_pred = edge_pred + edge_pred.permute([0, 2, 1, 3])
 
+        # 0s the diagonal and any extra rows/cols for smaller molecules with n < N_max
         preds = self.act(edge_pred) * diag_mask.unsqueeze(-1)
         D, W = preds.split(1, dim=-1)
 

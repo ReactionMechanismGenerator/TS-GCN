@@ -40,12 +40,10 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
                                                        factor=0.7, patience=5,
                                                        min_lr=0.00001)
-# todo: Do we want to use a lr scheduler?
+# alternative lr scheduler
 # scheduler = build_lr_scheduler(optimizer, args, len(train_loader.dataset))
 loss = torch.nn.MSELoss(reduction='sum')
-# or use MAE loss
-# todo access mask from data.batch attribute to reflect the previous implementation
-# self.loss_distance_all = self.masks["D"] * tf.abs(D_model - D_target)
+# alternative loss: MAE
 torch.nn.L1Loss(reduction='sum')  # MAE
 
 best_val_loss = math.inf
