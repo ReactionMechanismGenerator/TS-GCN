@@ -1,10 +1,12 @@
 from argparse import ArgumentParser
+from datetime import datetime
 import math
+import os
 import torch
 
 from model.G2C import G2C
 from model.training import train, test, NoamLR
-from utils import create_logger
+from utils import create_logger, plot_train_val_loss
 from features.featurization import construct_loader
 
 
@@ -25,7 +27,8 @@ parser.add_argument('--atom_messages', action='store_true')
 parser.add_argument('--use_cistrans_messages', action='store_true')
 
 args = parser.parse_args()
-logger = create_logger('train', args.log_dir)
+log_file_name = datetime.today().isoformat() + '_train'
+logger = create_logger(log_file_name, args.log_dir)
 
 
 
@@ -65,3 +68,6 @@ for epoch in range(1, args.n_epochs):
         # torch.save(model.state_dict(), os.path.join(args.log_dir, 'best_model'))
 
 logger.info("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
+
+log_file = os.path.join(args.log_dir, log_file_name + '.log')
+plot_train_val_loss(log_file)
