@@ -5,7 +5,7 @@ import os
 import torch
 
 from model.G2C import G2C
-from model.training import train, test, NoamLR
+from model.training import train, test, NoamLR, build_lr_scheduler
 from utils import create_logger, plot_train_val_loss
 from features.featurization import construct_loader
 
@@ -41,6 +41,7 @@ for arg in vars(args):
 
 
 train_loader, val_loader = construct_loader(args)
+train_data_size = len(train_loader.dataset)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = G2C(train_loader.dataset.num_node_features, train_loader.dataset.num_edge_features,
             args.hidden_dim, args.depth, args.n_layers).to(device)
@@ -51,6 +52,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
                                                        factor=0.7, patience=5,
                                                        min_lr=0.00001)
+scheduler = build_lr_scheduler(optimizer=optimizer, args=args, train_data_size=train_data_size)
+
 # record parameters
 logger.info(f'\nModel architecture is:\n{model}\n')
 logger.info(f'Optimizer parameters are:\n{optimizer}\n')
