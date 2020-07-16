@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import seaborn as sns
+import yaml
 
 sns.set_style('whitegrid', {'axes.edgecolor': '.2'})
 sns.set('poster', rc={"xtick.bottom" : True, "ytick.left" : True,
@@ -51,6 +52,58 @@ def create_logger(name: str, log_dir: str = None) -> logging.Logger:
 
     return logger
 
+
+def dict_to_str(dictionary: dict,
+                level: int = 0,
+                ) -> str:
+    """
+    A helper function to log dictionaries in a pretty way.
+
+    Args:
+        dictionary (dict): A general python dictionary.
+        level (int): A recursion level counter, sets the visual indentation.
+
+    Returns:
+        str: A text representation for the dictionary.
+    """
+    message = ''
+    for key, value in dictionary.items():
+        if isinstance(value, dict):
+            message += ' ' * level * 2 + str(key) + ':\n' + dict_to_str(value, level + 1)
+        else:
+            message += ' ' * level * 2 + str(key) + ': ' + str(value) + '\n'
+    return message
+
+
+def string_representer(dumper, data):
+    """
+    Add a custom string representer to use block literals for multiline strings.
+    """
+    if len(data.splitlines()) > 1:
+        return dumper.represent_scalar(tag='tag:yaml.org,2002:str', value=data, style='|')
+    return dumper.represent_scalar(tag='tag:yaml.org,2002:str', value=data)
+
+
+def save_yaml_file(path: str,
+                   content: list or dict,
+                   ) -> None:
+    """
+    Save a YAML file (usually an input / restart file, but also conformers file)
+
+    Args:
+        path (str): The YAML file path to save.
+        content (list, dict): The content to save.
+    """
+    if not isinstance(path, str):
+        raise InputError(f'path must be a string, got {path} which is a {type(path)}')
+    yaml.add_representer(str, string_representer)
+    content = yaml.dump(data=content)
+    if '/' in path and os.path.dirname(path) and not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+    with open(path, 'w') as f:
+        f.write(content)
+
+
 def plot_train_val_loss(log_file):
     """
     Plots the training and validation loss by parsing the log file.
@@ -74,4 +127,4 @@ def plot_train_val_loss(log_file):
     ax.set_ylabel('Loss')
     ax.legend()
 
-    fig.savefig(os.path.join(os.path.dirname(log_file), datetime.today().isoformat() + '_train_val_loss.pdf'), bbox_inches='tight')
+    fig.savefig(os.path.join(os.path.dirname(log_file), 'train_val_loss.pdf'), bbox_inches='tight')

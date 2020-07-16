@@ -6,7 +6,7 @@ import torch
 
 from model.G2C import G2C
 from model.training import train, test, NoamLR, build_lr_scheduler
-from utils import create_logger, plot_train_val_loss
+from utils import create_logger, dict_to_str, plot_train_val_loss, save_yaml_file
 from features.featurization import construct_loader
 
 
@@ -31,9 +31,10 @@ parser.add_argument('--atom_messages', action='store_true')
 parser.add_argument('--use_cistrans_messages', action='store_true')
 
 args = parser.parse_args()
-log_file_name = datetime.today().isoformat() + '_train'
-logger = create_logger(log_file_name, args.log_dir)
 
+log_dir = os.path.join(args.log_dir, datetime.today().isoformat())
+log_file_name = 'train'
+logger = create_logger(log_file_name, log_dir)
 logger.info('Arguments are...')
 for arg in vars(args):
     logger.info(f'{arg}: {getattr(args, arg)}')
@@ -41,8 +42,13 @@ for arg in vars(args):
 train_loader, val_loader = construct_loader(args)
 train_data_size = len(train_loader.dataset)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = G2C(train_loader.dataset.num_node_features, train_loader.dataset.num_edge_features,
-            args.hidden_dim, args.depth, args.n_layers).to(device)
+model_parameters = {'node_dim': train_loader.dataset.num_node_features,
+					'edge_dim': train_loader.dataset.num_edge_features,
+					'hidden_dim': args.hidden_dim,
+					'depth': args.depth,
+					'n_layers': args.n_layers}
+
+model = G2C(**model_parameters).to(device)
 if torch.cuda.device_count() > 1:
     logger.info(f'Using {torch.cuda.device_count()} GPUs for training...')
     model = torch.nn.DataParallel(model)
@@ -53,7 +59,9 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min',
 scheduler = build_lr_scheduler(optimizer=optimizer, args=args, train_data_size=train_data_size)
 
 # record parameters
-logger.info(f'\nModel architecture is:\n{model}\n')
+logger.info(f'\nModel parameters are:\n{dict_to_str(model_parameters)}\n')
+yaml_file_name = os.path.join(log_dir, 'model_paramaters.yml')
+save_yaml_file(yaml_file_name, model_parameters)
 logger.info(f'Optimizer parameters are:\n{optimizer}\n')
 logger.info(f'Scheduler state dict is:')
 for key, value in scheduler.state_dict().items():
@@ -74,7 +82,7 @@ for epoch in range(1, args.n_epochs):
     train_loss = train(model, train_loader, optimizer, loss, device, scheduler)
     logger.info("Epoch {}: Training Loss {}".format(epoch, train_loss))
 
-    val_loss = test(model, val_loader, loss, device, args.log_dir, epoch)
+    val_loss = test(model, val_loader, loss, device, log_dir, epoch)
     logger.info("Epoch {}: Validation Loss {}".format(epoch, val_loss))
     if not isinstance(scheduler, NoamLR):
         scheduler.step(val_loss)
@@ -82,9 +90,9 @@ for epoch in range(1, args.n_epochs):
     if val_loss <= best_val_loss:
         best_val_loss = val_loss
         best_epoch = epoch
-        # torch.save(model.state_dict(), os.path.join(args.log_dir, 'best_model'))
+        # torch.save(model.state_dict(), os.path.join(log_dir, 'best_model'))
 
 logger.info("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
 
-log_file = os.path.join(args.log_dir, log_file_name + '.log')
+log_file = os.path.join(log_dir, log_file_name + '.log')
 plot_train_val_loss(log_file)
