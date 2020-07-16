@@ -150,6 +150,7 @@ class G2C(torch.nn.Module):
         mask[data.batch, N_fill, N_fill] = 1  # fill diagonals
 
         X = self.dist_nlsq(D.squeeze(-1), W.squeeze(-1), mask)
+        data.coords = X
 
         return diag_mask*self.distances(X), diag_mask
 
