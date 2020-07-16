@@ -8,6 +8,11 @@ from torch.optim.lr_scheduler import _LRScheduler
 import torch.nn as nn
 from torch_geometric.utils import to_dense_adj
 
+import os
+import pymol
+import tempfile
+from rdkit import Chem, Geometry
+
 
 def train(model, loader, optimizer, loss, device, scheduler):
     model.train()
@@ -32,15 +37,19 @@ def train(model, loader, optimizer, loss, device, scheduler):
     return math.sqrt(loss_all / len(loader.dataset))  # rmse
 
 
-def test(model, loader, loss, device):
+def test(model, loader, loss, device, log_dir, epoch):
     model.eval()
     error = 0
 
-    for data in tqdm(loader):
+    for i, data in tqdm(enumerate(loader)):
         data = data.to(device)
         out, mask = model(data)
         result = loss(out, to_dense_adj(data.edge_index, data.batch, data.y)) / mask.sum()
         error += result.item()
+
+        if i==0:
+            if epoch<5:
+                check_ts(data, log_dir, epoch)
 
     # divides by number of molecules
     return math.sqrt(error / len(loader.dataset))  # rmse
@@ -155,3 +164,47 @@ def compute_pnorm(model: nn.Module) -> float:
 def compute_gnorm(model: nn.Module) -> float:
     """Computes the norm of the gradients of a model."""
     return math.sqrt(sum([p.grad.norm().item() ** 2 for p in model.parameters() if p.grad is not None]))
+
+
+def render_pymol(mol, img_file, width=300, height=200):
+    """ Render rdkit molecule with a pymol ball & stick representation """
+
+    target = "all"
+    pymol.cmd.delete(target)
+    pymol.cmd.set("max_threads", 4)
+    pymol.cmd.viewport(width, height)
+    pymol.cmd.bg_color(color="white")
+
+    # Save the file
+    fd, temp_path = tempfile.mkstemp(suffix=".pdb")
+    Chem.MolToPDBFile(mol, temp_path)
+    pymol.cmd.load(temp_path)
+    os.close(fd)
+
+    # Representation
+    pymol.cmd.color("gray40", target)
+    pymol.util.cnc()
+    pymol.cmd.show_as("spheres", target)
+    pymol.cmd.show("licorice", target)
+    pymol.cmd.set("sphere_scale", 0.25)
+    pymol.cmd.orient()
+    pymol.cmd.zoom(target, complete=1)
+    pymol.cmd.png(img_file, ray=1)
+    return
+
+
+def check_ts(data, log_dir, epoch):
+    """ Save examples of target and model predictions to file """
+
+    n_check = data.batch.unique().size(0) // 10
+    for i in range(n_check):
+
+        target_ts = data.mols[i][1]
+        predicted_ts = Chem.Mol(target_ts)
+
+        for j in range(predicted_ts.GetNumAtoms()):
+            x = data.coords[i][j].double().detach().numpy()
+            predicted_ts.GetConformer().SetAtomPosition(j, Geometry.Point3D(x[0], x[1], x[2]))
+
+        render_pymol(predicted_ts, os.path.join(log_dir, f'step{epoch}_ts{i}_model.png'), width=600, height=400)
+        render_pymol(target_ts, os.path.join(log_dir, f'step{epoch}_ts{i}_target.png'), width=600, height=400)
