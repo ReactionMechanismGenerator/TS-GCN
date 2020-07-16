@@ -312,7 +312,7 @@ class MolDataset(Dataset):
         data.x = torch.tensor(molgraph.f_atoms, dtype=torch.float)
         data.edge_index = torch.tensor(molgraph.edge_index, dtype=torch.long).t().contiguous()
         data.edge_attr = torch.tensor(molgraph.f_bonds, dtype=torch.float)
-        _, ts, _ = self.mols[key]
+        data.mols = self.mols[key]
         data.y = torch.tensor(molgraph.y, dtype=torch.float)
 
         #         if self.args.confs_dir:
@@ -327,9 +327,9 @@ class MolDataset(Dataset):
 
     def get_mols(self):
 
-        r_file = glob.glob(os.path.join(self.sdf_dir, '*reactants*'))[0]
-        ts_file = glob.glob(os.path.join(self.sdf_dir, '*ts*'))[0]
-        p_file = glob.glob(os.path.join(self.sdf_dir, '*products*'))[0]
+        r_file = glob.glob(os.path.join(self.sdf_dir, '*_reactants.sdf'))[0]
+        ts_file = glob.glob(os.path.join(self.sdf_dir, '*_ts.sdf'))[0]
+        p_file = glob.glob(os.path.join(self.sdf_dir, '*_products.sdf'))[0]
 
         data = [Chem.SDMolSupplier(r_file, removeHs=False, sanitize=False),
                 Chem.SDMolSupplier(ts_file, removeHs=False, sanitize=False),
