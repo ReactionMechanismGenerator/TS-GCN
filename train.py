@@ -76,7 +76,7 @@ for epoch in range(1, args.n_epochs):
     train_loss = train(model, train_loader, optimizer, loss, device, scheduler)
     logger.info("Epoch {}: Training Loss {}".format(epoch, train_loss))
 
-    val_loss = test(model, val_loader, loss, device)
+    val_loss = test(model, val_loader, loss, device, args.log_dir, epoch)
     logger.info("Epoch {}: Validation Loss {}".format(epoch, val_loss))
     if not isinstance(scheduler, NoamLR):
         scheduler.step(val_loss)
