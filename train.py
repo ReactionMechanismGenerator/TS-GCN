@@ -38,8 +38,6 @@ logger.info('Arguments are...')
 for arg in vars(args):
     logger.info(f'{arg}: {getattr(args, arg)}')
 
-
-
 train_loader, val_loader = construct_loader(args)
 train_data_size = len(train_loader.dataset)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -59,7 +57,7 @@ logger.info(f'\nModel architecture is:\n{model}\n')
 logger.info(f'Optimizer parameters are:\n{optimizer}\n')
 logger.info(f'Scheduler state dict is:')
 for key, value in scheduler.state_dict().items():
-    logger.info(f'{key}: value')
+    logger.info(f'{key}: {value}')
 logger.info('')
 
 # alternative lr scheduler
