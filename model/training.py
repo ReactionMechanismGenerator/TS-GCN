@@ -203,7 +203,7 @@ def check_ts(data, log_dir, epoch):
         predicted_ts = Chem.Mol(target_ts)
 
         for j in range(predicted_ts.GetNumAtoms()):
-            x = data.coords[i][j].double().detach().numpy()
+            x = data.coords[i][j].double().cpu().detach().numpy()
             predicted_ts.GetConformer().SetAtomPosition(j, Geometry.Point3D(x[0], x[1], x[2]))
 
         render_pymol(predicted_ts, os.path.join(log_dir, f'step{epoch}_ts{i}_model.png'), width=600, height=400)
