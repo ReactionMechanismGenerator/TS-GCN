@@ -109,8 +109,8 @@ class GNN(nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim=300, depth=3, n_layers=2):
         super(GNN, self).__init__()
         self.depth = depth
-        self.node_init = Lin(node_dim, hidden_dim)
-        self.edge_init = Lin(edge_dim, hidden_dim)
+        self.node_init = MLP(node_dim, hidden_dim, n_layers)
+        self.edge_init = MLP(edge_dim, hidden_dim, n_layers)
         self.update = MetaLayer(EdgeModel(hidden_dim, n_layers), NodeModel(hidden_dim, n_layers))
 
     def forward(self, x, edge_index, edge_attr):
