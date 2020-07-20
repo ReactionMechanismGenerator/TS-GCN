@@ -5,6 +5,10 @@ import numpy as np
 import os
 import seaborn as sns
 import yaml
+import torch
+
+from model.training import build_lr_scheduler
+
 
 sns.set_style('whitegrid', {'axes.edgecolor': '.2'})
 sns.set('poster', rc={"xtick.bottom" : True, "ytick.left" : True,
@@ -128,3 +132,20 @@ def plot_train_val_loss(log_file):
     ax.legend()
 
     fig.savefig(os.path.join(os.path.dirname(log_file), 'train_val_loss.pdf'), bbox_inches='tight')
+
+
+def get_optimizer_and_scheduler(args, model, train_data_size):
+    if args.optimizer == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    else:
+        raise NotImplementedError("Optimizer not implementer.")
+
+    if args.scheduler == 'plateau':
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.7,
+                                                               patience=5, min_lr=args.lr/100)
+    elif args.scheduler == 'noam':
+        scheduler = build_lr_scheduler(optimizer=optimizer, args=args, train_data_size=train_data_size)
+    else:
+        scheduler = None
+
+    return optimizer, scheduler
