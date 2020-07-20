@@ -39,16 +39,19 @@ logger.info('Arguments are...')
 for arg in vars(args):
     logger.info(f'{arg}: {getattr(args, arg)}')
 
+# construct loader and set device
 train_loader, val_loader = construct_loader(args)
-train_data_size = len(train_loader.dataset)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model_parameters = {'node_dim': train_loader.dataset.num_node_features,
-					'edge_dim': train_loader.dataset.num_edge_features,
-					'hidden_dim': args.hidden_dim,
-					'depth': args.depth,
-					'n_layers': args.n_layers}
 
+# build model
+model_parameters = {'node_dim': train_loader.dataset.num_node_features,
+                    'edge_dim': train_loader.dataset.num_edge_features,
+                    'hidden_dim': args.hidden_dim,
+                    'depth': args.depth,
+                    'n_layers': args.n_layers}
 model = G2C(**model_parameters).to(device)
+
+# multi gpu training
 if torch.cuda.device_count() > 1:
     logger.info(f'Using {torch.cuda.device_count()} GPUs for training...')
     model = torch.nn.DataParallel(model)
