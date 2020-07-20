@@ -13,9 +13,9 @@ import torch_geometric as tg
 from torch_geometric.data import Dataset, DataLoader
 
 # Atom feature sizes
-MAX_ATOMIC_NUM = 10
+ATOMIC_SYMBOLS = ['H', 'C', 'N', 'O']
 ATOM_FEATURES = {
-    'atomic_num': list(range(MAX_ATOMIC_NUM)),
+    'atomic_num': ATOMIC_SYMBOLS,
     'degree': [0, 1, 2, 3, 4, 5],
     'formal_charge': [-1, -2, 1, 2, 0],
     'chiral_tag': [0, 1, 2, 3], 
@@ -78,7 +78,7 @@ def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -
     :param functional_groups: A k-hot vector indicating the functional groups the atom belongs to.
     :return: A list containing the atom features.
     """
-    features = onek_encoding_unk(atom.GetAtomicNum() - 1, ATOM_FEATURES['atomic_num']) + \
+    features = onek_encoding_unk(atom.GetSymbol(), ATOM_FEATURES['atomic_num']) + \
         [1 if atom.GetIsAromatic() else 0] + \
         [atom.GetMass() * 0.01]  # scaled to about the same range as other features
     #        onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
