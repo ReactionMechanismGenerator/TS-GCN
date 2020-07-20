@@ -67,8 +67,8 @@ class EdgeModel(nn.Module):
     def __init__(self, hidden_dim, n_layers):
         super(EdgeModel, self).__init__()
         self.edge = Lin(hidden_dim, hidden_dim)
-        self.node_in = Lin(hidden_dim, hidden_dim)
-        self.node_out = Lin(hidden_dim, hidden_dim)
+        self.node_in = Lin(hidden_dim, hidden_dim, bias=False)
+        self.node_out = Lin(hidden_dim, hidden_dim, bias=False)
         self.mlp = MLP(hidden_dim, hidden_dim, n_layers)
 
     def forward(self, x, edge_attr, edge_index):
