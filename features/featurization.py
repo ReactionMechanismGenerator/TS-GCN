@@ -195,13 +195,13 @@ class MolGraph:
                 b1_feats = [D_r[a1][a2], D_p[a1][a2]]
                 b2_feats = [D_r[a2][a1], D_p[a2][a1]]
 
-                r_bond = r_mol.GetBondBetweenAtoms(a1, a2)
-                b1_feats.extend(bond_features(r_bond))
-                b2_feats.extend(bond_features(r_bond))
-
-                p_bond = p_mol.GetBondBetweenAtoms(a1, a2)
-                b1_feats.extend(bond_features(p_bond))
-                b2_feats.extend(bond_features(p_bond))
+                # r_bond = r_mol.GetBondBetweenAtoms(a1, a2)
+                # b1_feats.extend(bond_features(r_bond))
+                # b2_feats.extend(bond_features(r_bond))
+                #
+                # p_bond = p_mol.GetBondBetweenAtoms(a1, a2)
+                # b1_feats.extend(bond_features(p_bond))
+                # b2_feats.extend(bond_features(p_bond))
 
                 self.f_bonds.append(b1_feats)
                 self.f_bonds.append(b2_feats)
