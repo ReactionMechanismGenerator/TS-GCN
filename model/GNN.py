@@ -24,33 +24,19 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.layers = nn.ModuleList()
         # create the input layer
-        self.layers.append(nn.Linear(in_dim, out_dim))
-        self.layers.append(activation)
-
-        # create hidden layers
-        if num_layers > 2:
-            for i in range(num_layers - 2):
-                # print(out_dim)
-                # print(type(out_dim))
+        for layer in range(num_layers):
+            if layer == 0:
+                self.layers.append(nn.Linear(in_dim, out_dim))
+            else:
                 self.layers.append(nn.Linear(out_dim, out_dim))
-                self.layers.append(activation)
-        
-        # create output layer
-        # self.layers.append(nn.Linear(out_dim, out_dim))  # linear output
-        self.layers.append(torch.nn.Sigmoid())    # sigmoid output
-        # self.layers.append(torch.nn.Tanh())       # tanh output
+            self.layers.append(activation)
+        self.layers.append(nn.Linear(out_dim, out_dim))
         
     def forward(self, x):
-        y = x
         for i in range(len(self.layers)):
-            y = self.layers[i](y)
-        return y
+            x = self.layers[i](x)
+        return x
 
-
-# # test the MLP
-# mlp = Module1(4,3,6)
-# print(mlp)
-# mlp(torch.from_numpy(np.array([4,5,6,7])).float())
 
 
 class Module2(nn.Module):
