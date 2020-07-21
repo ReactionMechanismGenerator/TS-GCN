@@ -29,6 +29,7 @@ parser.add_argument('--n_layers', type=int, default=2)
 
 parser.add_argument('--optimizer', type=str, default='adam')
 parser.add_argument('--scheduler', type=str, default=None)
+parser.add_argument('--verbose', action='store_true', default=False)
 
 args = parser.parse_args()
 
@@ -79,7 +80,7 @@ best_epoch = 0
 
 logger.info("Starting training...")
 for epoch in range(1, args.n_epochs):
-    train_loss = train(model, train_loader, optimizer, loss, device, scheduler)
+    train_loss = train(model, train_loader, optimizer, loss, device, scheduler, logger if args.verbose else None)
     logger.info("Epoch {}: Training Loss {}".format(epoch, train_loss))
 
     val_loss = test(model, val_loader, loss, device, log_dir, epoch)

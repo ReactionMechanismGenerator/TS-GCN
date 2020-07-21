@@ -14,7 +14,7 @@ import tempfile
 from rdkit import Chem, Geometry
 
 
-def train(model, loader, optimizer, loss, device, scheduler):
+def train(model, loader, optimizer, loss, device, scheduler, logger):
     model.train()
     loss_all = 0
 
@@ -28,6 +28,11 @@ def train(model, loader, optimizer, loss, device, scheduler):
 
         # clip the gradients
         nn.utils.clip_grad_norm_(model.parameters(), max_norm=10, norm_type=2)
+
+        if logger:
+            pnorm = compute_pnorm(model)
+            gnorm = compute_gnorm(model)
+            logger.info(f'Parameter Norm: {pnorm}\t Gradient Norm: {gnorm}\t Loss: {result.item()}')
 
         optimizer.step()
         if isinstance(scheduler, NoamLR):
