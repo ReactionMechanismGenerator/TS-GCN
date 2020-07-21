@@ -54,11 +54,11 @@ class G2C(torch.nn.Module):
         # mask is (batch, 21, 21)
         # N_f32 is (batch,)
         # N_f32, [-1,1,1]) is (batch, 1, 1)
-        Nf32 = mask.nonzero().sum()  # number of atoms in each batch
+        N_mol = mask.sum(dim=1)[:, 0].view(-1, 1, 1)  # number of atoms per mol
         D = torch.square(D)
-        D_row = torch.sum(D, dim=1, keepdim=True)
-        D_col = torch.sum(D, dim=2, keepdim=True)
-        D_mean = torch.sum(D, dim=[1,2], keepdim=True)
+        D_row = torch.sum(D, dim=1, keepdim=True) / N_mol
+        D_col = torch.sum(D, dim=2, keepdim=True) / N_mol
+        D_mean = torch.sum(D, dim=[1,2], keepdim=True) / torch.square(N_mol)
         G = mask * -0.5 * (D - D_row - D_col + D_mean)
         return G
 
