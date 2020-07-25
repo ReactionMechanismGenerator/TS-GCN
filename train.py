@@ -5,7 +5,7 @@ import os
 import torch
 
 from model.G2C import G2C
-from model.training import train, test, NoamLR, build_lr_scheduler
+from model.training import train, test, NoamLR
 from utils import create_logger, dict_to_str, plot_train_val_loss, save_yaml_file, get_optimizer_and_scheduler
 from features.featurization import construct_loader
 
