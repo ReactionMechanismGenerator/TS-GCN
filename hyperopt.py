@@ -76,6 +76,7 @@ def optimize(trial, args):
         if val_loss <= best_val_loss:
             best_val_loss = val_loss
             best_epoch = epoch
+            torch.save(model.state_dict(), os.path.join(args.log_dir, f'epoch_{epoch}_state_dict'))
     train_logger.info("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
 
     train_logger.handlers = []

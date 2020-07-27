@@ -19,7 +19,7 @@ class G2C(torch.nn.Module):
         self.edge_mlp = MLP(hidden_dim, hidden_dim, n_layers)
         self.pred = Linear(hidden_dim, 2)
         self.act = torch.nn.Softplus()
-        self.d_init = Variable(torch.tensor([4.]), requires_grad=True)
+        self.d_init = Variable(torch.tensor([4.]), requires_grad=True).to(device)
 
     def forward(self, data):
         # torch.autograd.set_detect_anomaly(True)   # use only when debugging
