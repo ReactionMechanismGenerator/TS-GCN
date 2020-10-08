@@ -1,74 +1,19 @@
-import os
 from argparse import Namespace
-from typing import List, Tuple, Union
-
-from rdkit import Chem
-from rdkit.Chem.rdchem import ChiralType
-
-import torch
-import numpy as np
 import glob
-
+import numpy as np
+import os
+from rdkit import Chem
+import torch
 import torch_geometric as tg
 from torch_geometric.data import Dataset, DataLoader
+from typing import List, Tuple, Union
 
-# Atom feature sizes
-ATOMIC_SYMBOLS = ['H', 'C', 'N', 'O']
-ATOM_FEATURES = {
-    'atomic_num': ATOMIC_SYMBOLS,
-    'degree': [0, 1, 2, 3, 4, 5],
-    'formal_charge': [-1, -2, 1, 2, 0],
-    'chiral_tag': [0, 1, 2, 3], 
-    'num_Hs': [0, 1, 2, 3, 4],
-    'hybridization': [
-        Chem.rdchem.HybridizationType.SP,
-        Chem.rdchem.HybridizationType.SP2,
-        Chem.rdchem.HybridizationType.SP3,
-        Chem.rdchem.HybridizationType.SP3D,
-        Chem.rdchem.HybridizationType.SP3D2
-    ],
-}
-CHIRALTAG_PARITY = {
-    ChiralType.CHI_TETRAHEDRAL_CW: +1,
-    ChiralType.CHI_TETRAHEDRAL_CCW: -1,
-    ChiralType.CHI_UNSPECIFIED: 0,
-    ChiralType.CHI_OTHER: 0, # default
-}
-
-# len(choices) + 1 to include room for uncommon values; + 2 at end for IsAromatic and mass
-ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2
-BOND_FDIM = 7
-
-
-def get_atom_fdim(args: Namespace) -> int:
-    """
-    Gets the dimensionality of atom features.
-    :param: Arguments.
-    """
-    return ATOM_FDIM
-
-
-def get_bond_fdim(args: Namespace) -> int:
-    """
-    Gets the dimensionality of bond features.
-    :param: Arguments.
-    """
-    return BOND_FDIM
-
-
-def onek_encoding_unk(value: int, choices: List[int]) -> List[int]:
-    """
-    Creates a one-hot encoding.
-    :param value: The value for which the encoding should be one.
-    :param choices: A list of possible values.
-    :return: A one-hot encoding of the value in a list of length len(choices) + 1.
-    If value is not in the list of choices, then the final element in the encoding is 1.
-    """
-    encoding = [0] * (len(choices) + 1)
-    index = choices.index(value) if value in choices else -1
-    encoding[index] = 1
-
-    return encoding
+from features.common import (ATOM_FEATURES,
+                             CHIRALTAG_PARITY,
+                             ATOM_FDIM,
+                             BOND_FDIM,
+                             onek_encoding_unk,
+                             )
 
 
 def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
