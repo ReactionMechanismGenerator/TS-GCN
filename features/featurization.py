@@ -101,15 +101,15 @@ class MolGraph:
         :param smiles: A smiles string.
         :param args: Arguments.
         """
-        self.n_atoms = 0  # number of atoms
-        self.n_bonds = 0  # number of bonds
-        self.f_atoms = []  # mapping from atom index to atom features
-        self.f_bonds = []  # mapping from bond index to concat(in_atom, bond) features
-        self.a2b = []  # mapping from atom index to incoming bond indices
-        self.b2a = []  # mapping from bond index to the index of the atom the bond is coming from
-        self.b2revb = []  # mapping from bond index to the index of the reverse bond
+        self.n_atoms = 0    # number of atoms
+        self.n_bonds = 0    # number of bonds
+        self.f_atoms = []   # mapping from atom index to atom features
+        self.f_bonds = []   # mapping from bond index to concat(in_atom, bond) features
+        self.a2b = []       # mapping from atom index to incoming bond indices
+        self.b2a = []       # mapping from bond index to the index of the atom the bond is coming from
+        self.b2revb = []    # mapping from bond index to the index of the reverse bond
         self.parity_atoms = []  # mapping from atom index to CW (+1), CCW (-1) or undefined tetra (0)
-        self.edge_index = []  # list of tuples indicating presence of bonds
+        self.edge_index = []    # list of tuples indicating presence of bonds
         self.y = []
 
         # extract reactant, ts, product
