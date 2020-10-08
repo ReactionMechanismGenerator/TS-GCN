@@ -1,0 +1,28 @@
+name: ts_gen_v2
+channels:
+  - defaults
+  - rdkit
+  - schrodinger
+  - pytorch
+  - conda-forge
+dependencies:
+  - h5py
+  - ipython
+  - jupyter
+  - matplotlib>=3.1
+  - numpy>=1.15.0
+  - openbabel
+  - pandas
+  - pip
+  - psutil
+  - py3dmol>=0.8.0
+  - pymol 
+  - pyyaml
+  - python>=3.7
+  - pytorch>=1.6.0
+  - rdkit>=2019.09.1.0
+  - scikit-learn
+  - scipy
+  - seaborn
+  - xlrd
+  - xlwt
