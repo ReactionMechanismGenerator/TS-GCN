@@ -57,15 +57,9 @@ do
     esac
 done
 
-echo $CUDA
-
-echo $CUDA_VERSION
-
 echo "Creating conda environment..."
 echo "Running: conda env create -f environment.yml"
 conda env create -f environment.yml
-
-# WORKS FINE UP TO HERE
 
 # activate the environment to install torch-geometric
 source activate ts_gen_v2
