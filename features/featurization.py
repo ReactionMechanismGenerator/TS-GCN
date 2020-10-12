@@ -166,9 +166,15 @@ class MolGraph:
         self.parity_atoms = []  # mapping from atom index to CW (+1), CCW (-1) or undefined tetra (0)
         self.edge_index = []  # list of tuples indicating presence of bonds
         self.y = []
+        self.tetra_n_ids = []
+        self.tetra_mask = []
 
         # extract reactant, ts, product
         r_mol, ts_mol, p_mol = mols
+
+        # update properties
+        # r_mol.UpdatePropertyCache()
+        # p_mol.UpdatePropertyCache()
 
         # fake the number of "atoms" if we are collapsing substructures
         n_atoms = r_mol.GetNumAtoms()
@@ -207,6 +213,31 @@ class MolGraph:
                 self.f_bonds.append(b2_feats)
                 self.y.extend([D_ts[a1][a2], D_ts[a2][a1]])
 
+        # # get neighbor ids for tetra centers
+        # for a in r_mol.GetAtoms():
+        #     deg = a.GetTotalDegree()
+        #     if deg == 4:
+        #         ns = [n.GetIdx() for n in a.GetNeighbors()]
+        #         self.tetra_n_ids.append(ns)
+        #         self.tetra_mask.append(1)
+        #     else:
+        #         self.tetra_mask.append(0)
+        #
+        # pn_ids = []
+        # for a in p_mol.GetAtoms():
+        #     deg = a.GetTotalDegree()
+        #     if deg == 4:
+        #         ns = [n.GetIdx() for n in a.GetNeighbors()]
+        #         pn_ids.append(ns)
+        #
+        # s_n_ids = [sorted(l) for l in self.tetra_n_ids]
+        # s_pn_ids = [sorted(l) for l in pn_ids]
+        # for i, l in enumerate(s_pn_ids):
+        #     if l not in s_n_ids:
+        #         self.tetra_n_ids.append(pn_ids[i])
+        #
+        # # calculate true signed volumes
+        # self.true_signs = [self.signed_vol(ts_mol.GetConformer().GetPositions(), ns) for ns in self.tetra_n_ids]
 
         # Get atom features
         # for i, atom in enumerate(mol.GetAtoms()):
@@ -286,6 +317,13 @@ class MolGraph:
 
         return self.a2a
 
+    def signed_vol(self, X, n_ids):
+
+        mat = np.hstack((X[n_ids], np.ones((4, 1)))).transpose()
+        det = np.linalg.det(mat)
+
+        return np.sign(det)
+
 
 class MolDataset(Dataset):
 
@@ -314,6 +352,9 @@ class MolDataset(Dataset):
         data.edge_attr = torch.tensor(molgraph.f_bonds, dtype=torch.float)
         data.mols = self.mols[key]
         data.y = torch.tensor(molgraph.y, dtype=torch.float)
+        # data.tetra_n_ids = torch.tensor(molgraph.tetra_n_ids, dtype=torch.long)
+        # data.true_signs = torch.tensor(molgraph.true_signs, dtype=torch.float)
+        # data.tetra_mask = torch.tensor(molgraph.tetra_mask, dtype=torch.long)
 
         #         if self.args.confs_dir:
         #             path = os.path.join(self.confs_dir, f'{self.data_map[key]}'.zfill(self.zfill) + '.sdf')
