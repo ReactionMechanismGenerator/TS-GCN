@@ -42,7 +42,7 @@ def train(model, loader, optimizer, loss, device, scheduler, logger):
     return math.sqrt(loss_all / len(loader.dataset))  # rmse
 
 
-def test(model, loader, loss, device, log_dir, epoch):
+def test(model, loader, loss, device):
     model.eval()
     error = 0
 
@@ -52,9 +52,9 @@ def test(model, loader, loss, device, log_dir, epoch):
         result = loss(out, to_dense_adj(data.edge_index, data.batch, data.y)) / mask.sum()
         error += result.item()
 
-        if i==0:
-            if epoch<5:
-                check_ts(data, log_dir, epoch)
+        # if i==0:
+        #     if epoch<5:
+        #         check_ts(data, log_dir, epoch)
 
     # divides by number of molecules
     return math.sqrt(error / len(loader.dataset))  # rmse
