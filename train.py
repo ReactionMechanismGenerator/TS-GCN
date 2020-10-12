@@ -62,7 +62,7 @@ optimizer, scheduler = get_optimizer_and_scheduler(args, model, len(train_loader
 
 # record parameters
 logger.info(f'\nModel parameters are:\n{dict_to_str(model_parameters)}\n')
-yaml_file_name = os.path.join(log_dir, 'model_paramaters.yml')
+yaml_file_name = os.path.join(log_dir, 'model_parameters.yml')
 save_yaml_file(yaml_file_name, model_parameters)
 logger.info(f'Optimizer parameters are:\n{optimizer}\n')
 logger.info(f'Scheduler state dict is:')
@@ -83,7 +83,7 @@ for epoch in range(1, args.n_epochs):
     train_loss = train(model, train_loader, optimizer, loss, device, scheduler, logger if args.verbose else None)
     logger.info("Epoch {}: Training Loss {}".format(epoch, train_loss))
 
-    val_loss = test(model, val_loader, loss, device, log_dir, epoch)
+    val_loss = test(model, val_loader, loss, device)
     logger.info("Epoch {}: Validation Loss {}".format(epoch, val_loss))
     if scheduler and not isinstance(scheduler, NoamLR):
         scheduler.step(val_loss)
