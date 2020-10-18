@@ -112,7 +112,7 @@ class G2C(torch.nn.Module):
 
             # Gradient calculation
             # U = Variable(U, requires_grad=True)
-            g = torch.autograd.grad(U, X)[0]
+            g = torch.autograd.grad(U, X, create_graph=True)[0]
             return g
 
 
