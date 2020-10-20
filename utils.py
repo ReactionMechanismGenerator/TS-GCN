@@ -11,12 +11,13 @@ from model.training import build_lr_scheduler
 
 
 sns.set_style('whitegrid', {'axes.edgecolor': '.2'})
-sns.set('poster', rc={"xtick.bottom" : True, "ytick.left" : True,
-                    'axes.edgecolor': '.2',
-                    "font.weight" : 'bold',
-                    "axes.titleweight": 'bold',
-                    'axes.labelweight' : 'bold'})
+sns.set('poster', rc={"xtick.bottom": True, "ytick.left": True,
+                      'axes.edgecolor': '.2',
+                      "font.weight": 'bold',
+                      "axes.titleweight": 'bold',
+                      'axes.labelweight': 'bold'})
 sns.color_palette('husl')
+
 
 class Standardizer:
     """Z-score standardization"""

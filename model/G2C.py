@@ -2,9 +2,7 @@ import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.nn import Linear
-from torch.nn import BatchNorm1d
 import torch_geometric as tg
-from torch_geometric.nn import GCNConv
 
 # used to access the updated GCN later
 from model.GNN import GNN, MLP
@@ -46,7 +44,6 @@ class G2C(torch.nn.Module):
         data.coords = X
 
         return diag_mask*self.distances(X), diag_mask
-
 
     def distance_to_gram(self, D, mask):
         """Convert distance matrix to gram matrix"""
@@ -111,10 +108,8 @@ class G2C(torch.nn.Module):
             U = torch.sum(U)  # U is a scalar
 
             # Gradient calculation
-            # U = Variable(U, requires_grad=True)
             g = torch.autograd.grad(U, X, create_graph=True)[0]
             return g
-
 
         def stepfun(t, x_t):
             """Step function"""
@@ -134,7 +129,7 @@ class G2C(torch.nn.Module):
 
             return t + 1, x_new
 
-        # intial guess for X
+        # initial guess for X
         # D is (batch, 21, 21)
         # mask is (batch, 21, 21)
         B = self.distance_to_gram(D, mask)       # B is (batch, 21, 21)
@@ -151,34 +146,6 @@ class G2C(torch.nn.Module):
            t, x = stepfun(t, x)
 
         return x
-
-    # currently not used
-    def rmsd(self, X1, X2, mask_V):
-        """RMSD between 2 structures"""
-        # note: in torch, sum and mean automatically reduce dimensions
-        X1 = X1 - torch.sum(mask_V * X1,dim=1,keepdim=True) \
-                    / torch.sum(mask_V, dim=1,keepdim=True)
-        X2 = X2 - torch.sum(mask_V * X2, dim=1, keepdim=True) \
-             / torch.sum(mask_V, dim=1, keepdim=True)
-
-        X1 *= mask_V
-        X2 *= mask_V
-
-        eps = 1E-2
-
-        X1_perturb = X1 + eps * torch.normal(mean=0, std=1, size=X1.shape)
-        # or use random normal ~N(0, 1)
-        X2_perturb = X2 + eps * torch.randn(X2.shape)
-        A = torch.matmul(X1_perturb.T, X2_perturb)
-        S, U, V = torch.svd(A)  # default arguments are: some=True, compute_uv=True
-
-        X1_align = torch.matmul(U, torch.matmul(V, X1.T))
-        X1_align = X1_align.permute(0, 2, 1)
-
-        MSD = torch.sum(mask_V * torch.square(X1_align - X2), [1, 2]) \
-              / torch.sum(mask_V, [1, 2])
-        RMSD = torch.mean(torch.sqrt(MSD + 1E-3))
-        return RMSD, X1_align
 
     def distances(self, X):
         """Compute Euclidean distance from X"""
