@@ -17,7 +17,13 @@ class G2C(torch.nn.Module):
         self.edge_mlp = MLP(hidden_dim, hidden_dim, n_layers)
         self.pred = Linear(hidden_dim, 2)
         self.act = torch.nn.Softplus()
-        self.d_init = Variable(torch.tensor([4.]), requires_grad=True).to(device)
+        self.d_init = torch.nn.Parameter(torch.tensor([4.]), requires_grad=True).to(device)
+
+        # learnable optimization params
+        self.T = torch.nn.Parameter(torch.tensor([50.]), requires_grad=True).to(device)
+        self.eps = torch.nn.Parameter(torch.tensor([0.1]), requires_grad=True).to(device)
+        self.alpha = torch.nn.Parameter(torch.tensor([5.]), requires_grad=True).to(device)
+        self.alpha_base = torch.nn.Parameter(torch.tensor([0.1]), requires_grad=True).to(device)
 
     def forward(self, data):
         # torch.autograd.set_detect_anomaly(True)   # use only when debugging
@@ -90,10 +96,10 @@ class G2C(torch.nn.Module):
         # W is (batch, 21, 21)
         # mask is (batch, 21, 21)
 
-        T = 100
-        eps = 0.1
-        alpha = 5.0
-        alpha_base = 0.1
+        # T = 10
+        # eps = 0.1
+        # alpha = 5.0
+        # alpha_base = 0.1
 
         def gradfun(X):
             """ Grad function """
@@ -115,17 +121,17 @@ class G2C(torch.nn.Module):
             """Step function"""
             # x_t is (?, 21, 3)
             g = gradfun(x_t)
-            dx = -eps * g  # (?, 21, 3)
+            dx = -self.eps * g  # (?, 21, 3)
 
             # Speed clipping (How fast in Angstroms)
             speed = torch.sqrt(torch.sum(torch.square(dx), dim=2, keepdim=True) + 1E-3) # (batch, 21, 3)
 
             # Alpha sets max speed (soft trust region)
-            alpha_t = alpha_base + (alpha - alpha_base) * torch.tensor((T - t) / T).float()
+            alpha_t = self.alpha_base + (self.alpha - self.alpha_base) * ((self.T - t) / self.T)
             scale = alpha_t * torch.tanh(speed / alpha_t) / speed  # (batch, 21, 1)
-            dx *= scale  # (batch, 21, 3)
+            dx_scaled = dx * scale  # (batch, 21, 3)
 
-            x_new = x_t + dx
+            x_new = x_t + dx_scaled
 
             return t + 1, x_new
 
@@ -142,7 +148,7 @@ class G2C(torch.nn.Module):
         # Optimization loop
         t=0
         x = x_init
-        while t < T:
+        while t < self.T:
            t, x = stepfun(t, x)
 
         return x
