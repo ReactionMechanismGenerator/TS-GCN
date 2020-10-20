@@ -2,9 +2,7 @@ import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.nn import Linear
-from torch.nn import BatchNorm1d
 import torch_geometric as tg
-from torch_geometric.nn import GCNConv
 
 # used to access the updated GCN later
 from model.GNN import GNN, MLP
@@ -19,7 +17,13 @@ class G2C(torch.nn.Module):
         self.edge_mlp = MLP(hidden_dim, hidden_dim, n_layers)
         self.pred = Linear(hidden_dim, 2)
         self.act = torch.nn.Softplus()
-        self.d_init = Variable(torch.tensor([4.]), requires_grad=True).to(device)
+        self.d_init = torch.nn.Parameter(torch.tensor([4.]), requires_grad=True).to(device)
+
+        # learnable optimization params
+        self.T = torch.nn.Parameter(torch.tensor([50.]), requires_grad=True).to(device)
+        self.eps = torch.nn.Parameter(torch.tensor([0.1]), requires_grad=True).to(device)
+        self.alpha = torch.nn.Parameter(torch.tensor([5.]), requires_grad=True).to(device)
+        self.alpha_base = torch.nn.Parameter(torch.tensor([0.1]), requires_grad=True).to(device)
 
     def forward(self, data):
         # torch.autograd.set_detect_anomaly(True)   # use only when debugging
@@ -46,7 +50,6 @@ class G2C(torch.nn.Module):
         data.coords = X
 
         return diag_mask*self.distances(X), diag_mask
-
 
     def distance_to_gram(self, D, mask):
         """Convert distance matrix to gram matrix"""
@@ -83,7 +86,7 @@ class G2C(torch.nn.Module):
         X = torch.cat(tensors=u_set, dim=2)         # X shape (1, 21, 3)
         return X
 
-    def dist_nlsq(self, D, W, mask):
+    def dist_nlsq(self, D, W, C, Wc, mask, tetra_mask):
         """
         Solve a nonlinear distance geometry problem by nonlinear least squares
 
@@ -115,26 +118,25 @@ class G2C(torch.nn.Module):
             g = torch.autograd.grad(U, X)[0]
             return g
 
-
         def stepfun(t, x_t):
             """Step function"""
             # x_t is (?, 21, 3)
             g = gradfun(x_t)
-            dx = -eps * g  # (?, 21, 3)
+            dx = -self.eps * g  # (?, 21, 3)
 
             # Speed clipping (How fast in Angstroms)
             speed = torch.sqrt(torch.sum(torch.square(dx), dim=2, keepdim=True) + 1E-3) # (batch, 21, 3)
 
             # Alpha sets max speed (soft trust region)
-            alpha_t = alpha_base + (alpha - alpha_base) * torch.tensor((T - t) / T).float()
+            alpha_t = self.alpha_base + (self.alpha - self.alpha_base) * ((self.T - t) / self.T)
             scale = alpha_t * torch.tanh(speed / alpha_t) / speed  # (batch, 21, 1)
-            dx *= scale  # (batch, 21, 3)
+            dx_scaled = dx * scale  # (batch, 21, 3)
 
-            x_new = x_t + dx
+            x_new = x_t + dx_scaled
 
             return t + 1, x_new
 
-        # intial guess for X
+        # initial guess for X
         # D is (batch, 21, 21)
         # mask is (batch, 21, 21)
         B = self.distance_to_gram(D, mask)       # B is (batch, 21, 21)
@@ -151,34 +153,6 @@ class G2C(torch.nn.Module):
            t, x = stepfun(t, x)
 
         return x
-
-    # currently not used
-    def rmsd(self, X1, X2, mask_V):
-        """RMSD between 2 structures"""
-        # note: in torch, sum and mean automatically reduce dimensions
-        X1 = X1 - torch.sum(mask_V * X1,dim=1,keepdim=True) \
-                    / torch.sum(mask_V, dim=1,keepdim=True)
-        X2 = X2 - torch.sum(mask_V * X2, dim=1, keepdim=True) \
-             / torch.sum(mask_V, dim=1, keepdim=True)
-
-        X1 *= mask_V
-        X2 *= mask_V
-
-        eps = 1E-2
-
-        X1_perturb = X1 + eps * torch.normal(mean=0, std=1, size=X1.shape)
-        # or use random normal ~N(0, 1)
-        X2_perturb = X2 + eps * torch.randn(X2.shape)
-        A = torch.matmul(X1_perturb.T, X2_perturb)
-        S, U, V = torch.svd(A)  # default arguments are: some=True, compute_uv=True
-
-        X1_align = torch.matmul(U, torch.matmul(V, X1.T))
-        X1_align = X1_align.permute(0, 2, 1)
-
-        MSD = torch.sum(mask_V * torch.square(X1_align - X2), [1, 2]) \
-              / torch.sum(mask_V, [1, 2])
-        RMSD = torch.mean(torch.sqrt(MSD + 1E-3))
-        return RMSD, X1_align
 
     def distances(self, X):
         """Compute Euclidean distance from X"""
