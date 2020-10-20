@@ -8,7 +8,7 @@ from model.G2C import G2C
 from model.training import train, test, NoamLR
 from utils import create_logger, dict_to_str, plot_train_val_loss, save_yaml_file, get_optimizer_and_scheduler
 from features.featurization import construct_loader
-
+from torch.utils.tensorboard import SummaryWriter
 
 parser = ArgumentParser()
 
@@ -75,23 +75,31 @@ loss = torch.nn.MSELoss(reduction='sum')
 # alternative loss: MAE
 torch.nn.L1Loss(reduction='sum')  # MAE
 
+# set up tensorboard
+writer = SummaryWriter(log_dir=log_dir)
+# writer.add_graph(model, train_loader.dataset[0])
+# writer.flush()
+
 best_val_loss = math.inf
 best_epoch = 0
 
 logger.info("Starting training...")
-for epoch in range(1, args.n_epochs):
-    train_loss = train(model, train_loader, optimizer, loss, device, scheduler, logger if args.verbose else None)
+for epoch in range(args.n_epochs):
+    train_loss = train(model, train_loader, optimizer, loss, device, scheduler, logger if args.verbose else None, writer, epoch)
     logger.info("Epoch {}: Training Loss {}".format(epoch, train_loss))
+    writer.add_scalar("Loss/train", train_loss, epoch)
 
     val_loss = test(model, val_loader, loss, device)
     logger.info("Epoch {}: Validation Loss {}".format(epoch, val_loss))
+    writer.add_scalar("Loss/validation", val_loss, epoch)
+    writer.flush()
     if scheduler and not isinstance(scheduler, NoamLR):
         scheduler.step(val_loss)
 
     if val_loss <= best_val_loss:
         best_val_loss = val_loss
         best_epoch = epoch
-        # torch.save(model.state_dict(), os.path.join(log_dir, 'best_model'))
+        torch.save(model.state_dict(), os.path.join(log_dir, 'best_model'))
 
 logger.info("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
 

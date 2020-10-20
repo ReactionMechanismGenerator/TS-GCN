@@ -14,11 +14,11 @@ import tempfile
 from rdkit import Chem, Geometry
 
 
-def train(model, loader, optimizer, loss, device, scheduler, logger):
+def train(model, loader, optimizer, loss, device, scheduler, logger, writer, epoch):
     model.train()
     loss_all = 0
 
-    for data in tqdm(loader):
+    for i, data in enumerate(tqdm(loader)):
         data = data.to(device)
         optimizer.zero_grad()
 
@@ -33,6 +33,16 @@ def train(model, loader, optimizer, loss, device, scheduler, logger):
             pnorm = compute_pnorm(model)
             gnorm = compute_gnorm(model)
             logger.info(f'Parameter Norm: {pnorm}\t Gradient Norm: {gnorm}\t Loss: {result.item()}')
+
+            # debugging
+            writer.add_histogram('Vars/pred', model.pred.weight, epoch*len(loader) + i)
+            writer.add_histogram('Grads/pred', model.pred.weight.grad, epoch * len(loader) + i)
+
+            writer.add_histogram('Vars/edge_mlp_l1', model.edge_mlp.layers[0].weight, epoch * len(loader) + i)
+            writer.add_histogram('Grads/edge_mlp_l1', model.edge_mlp.layers[0].weight.grad, epoch * len(loader) + i)
+
+            writer.add_image('W', model.W[0].unsqueeze(0), epoch * len(loader) + i)
+            writer.flush()
 
         optimizer.step()
         if isinstance(scheduler, NoamLR):
