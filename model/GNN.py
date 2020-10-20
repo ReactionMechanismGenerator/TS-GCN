@@ -27,6 +27,7 @@ class MLP(nn.Module):
                 self.layers.append(nn.Linear(in_dim, out_dim))
             else:
                 self.layers.append(nn.Linear(out_dim, out_dim))
+            self.layers.append(nn.BatchNorm1d(out_dim))
             self.layers.append(activation)
         self.layers.append(nn.Linear(out_dim, out_dim))
         
