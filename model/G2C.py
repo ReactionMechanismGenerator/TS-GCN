@@ -96,10 +96,10 @@ class G2C(torch.nn.Module):
         # W is (batch, 21, 21)
         # mask is (batch, 21, 21)
 
-        T = 100
-        eps = 0.1
-        alpha = 5.0
-        alpha_base = 0.1
+        # T = 10
+        # eps = 0.1
+        # alpha = 5.0
+        # alpha_base = 0.1
 
         def gradfun(X):
             """ Grad function """
@@ -114,8 +114,7 @@ class G2C(torch.nn.Module):
             U = torch.sum(U)  # U is a scalar
 
             # Gradient calculation
-            # U = Variable(U, requires_grad=True)
-            g = torch.autograd.grad(U, X)[0]
+            g = torch.autograd.grad(U, X, create_graph=True)[0]
             return g
 
         def stepfun(t, x_t):
@@ -149,7 +148,7 @@ class G2C(torch.nn.Module):
         # Optimization loop
         t=0
         x = x_init
-        while t < T:
+        while t < self.T:
            t, x = stepfun(t, x)
 
         return x
