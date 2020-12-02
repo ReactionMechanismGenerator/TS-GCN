@@ -51,6 +51,7 @@ dependencies:
   - pyyaml
   - quantities
   - rdkit >=2019.09.2.0
+  - seaborn
   - scikit-learn
   - scipy
   - sphinx_rtd_theme
