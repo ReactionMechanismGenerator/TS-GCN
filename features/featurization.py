@@ -153,85 +153,6 @@ class MolGraph:
                 self.y.extend([D_ts[a1][a2], D_ts[a2][a1]])
 
 
-        # Get atom features
-        # for i, atom in enumerate(mol.GetAtoms()):
-        #     self.f_atoms.append(atom_features(atom))
-        #     self.parity_atoms.append(parity_features(atom))
-        # self.f_atoms = [self.f_atoms[i] for i in range(self.n_atoms)]
-        #
-        # for _ in range(self.n_atoms):
-        #     self.a2b.append([])
-        #
-        # # Get bond features
-        # for a1 in range(self.n_atoms):
-        #     for a2 in range(a1 + 1, self.n_atoms):
-        #         bond = mol.GetBondBetweenAtoms(a1, a2)
-        #
-        #         if bond is None:
-        #             continue
-        #
-        #         self.edge_index.extend([(a1, a2), (a2, a1)])
-        #
-        #         f_bond = bond_features(bond)
-        #
-        #         if args.atom_messages:
-        #             self.f_bonds.append(f_bond)
-        #             self.f_bonds.append(f_bond)
-        #         else:
-        #             self.f_bonds.append(self.f_atoms[a1] + f_bond)
-        #             self.f_bonds.append(self.f_atoms[a2] + f_bond)
-        #
-        #         # Update index mappings
-        #         b1 = self.n_bonds
-        #         b2 = b1 + 1
-        #         self.a2b[a2].append(b1)  # b1 = a1 --> a2
-        #         self.b2a.append(a1)
-        #         self.a2b[a1].append(b2)  # b2 = a2 --> a1
-        #         self.b2a.append(a2)
-        #         self.b2revb.append(b2)
-        #         self.b2revb.append(b1)
-        #         self.n_bonds += 2
-
-
-    def get_components(self) -> Tuple[torch.FloatTensor, torch.FloatTensor,
-                                      torch.LongTensor, torch.LongTensor, torch.LongTensor,
-                                      List[Tuple[int, int]], List[Tuple[int, int]]]:
-        """
-        Returns the components of the BatchMolGraph.
-        :return: A tuple containing PyTorch tensors with the atom features, bond features, and graph structure
-        and two lists indicating the scope of the atoms and bonds (i.e. which molecules they belong to).
-        """
-        return self.f_atoms, self.f_bonds, self.a2b, self.b2a, self.b2revb, self.a_scope, self.b_scope, self.parity_atoms
-
-    def get_b2b(self) -> torch.LongTensor:
-        """
-        Computes (if necessary) and returns a mapping from each bond index to all the incoming bond indices.
-        :return: A PyTorch tensor containing the mapping from each bond index to all the incoming bond indices.
-        """
-
-        if self.b2b is None:
-            b2b = self.a2b[self.b2a]  # num_bonds x max_num_bonds
-            # b2b includes reverse edge for each bond so need to mask out
-            revmask = (b2b != self.b2revb.unsqueeze(1).repeat(1, b2b.size(1))).long()  # num_bonds x max_num_bonds
-            self.b2b = b2b * revmask
-
-        return self.b2b
-
-    def get_a2a(self) -> torch.LongTensor:
-        """
-        Computes (if necessary) and returns a mapping from each atom index to all neighboring atom indices.
-        :return: A PyTorch tensor containing the mapping from each bond index to all the incodming bond indices.
-        """
-        if self.a2a is None:
-            # b = a1 --> a2
-            # a2b maps a2 to all incoming bonds b
-            # b2a maps each bond b to the atom it comes from a1
-            # thus b2a[a2b] maps atom a2 to neighboring atoms a1
-            self.a2a = self.b2a[self.a2b]  # num_atoms x max_num_bonds
-
-        return self.a2a
-
-
 class MolDataset(Dataset):
 
     def __init__(self, sdf_dir, args, mode='train'):
@@ -259,14 +180,6 @@ class MolDataset(Dataset):
         data.edge_attr = torch.tensor(molgraph.f_bonds, dtype=torch.float)
         data.mols = self.mols[key]
         data.y = torch.tensor(molgraph.y, dtype=torch.float)
-
-        #         if self.args.confs_dir:
-        #             path = os.path.join(self.confs_dir, f'{self.data_map[key]}'.zfill(self.zfill) + '.sdf')
-        #             pos, sym = read_sdf(path, n=1)[0]
-        #             assert [a.GetSymbol() for a in Chem.MolFromSmiles(self.smiles[key]).GetAtoms()] == sym  # ordering
-        #             pos = torch.tensor(pos)
-        #             data.pos = pos - pos.mean(dim=0)
-        #             data.atoms = torch.tensor([a.GetAtomicNum() for a in Chem.MolFromSmiles(self.smiles[key]).GetAtoms()])
 
         return data
 
