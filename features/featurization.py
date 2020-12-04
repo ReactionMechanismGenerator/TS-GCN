@@ -16,23 +16,18 @@ from features.common import (ATOM_FEATURES,
                              )
 
 
-def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
+def atom_features(atom: Chem.rdchem.Atom) -> List[Union[bool, int, float]]:
     """
     Builds a feature vector for an atom.
     :param atom: An RDKit atom.
-    :param functional_groups: A k-hot vector indicating the functional groups the atom belongs to.
     :return: A list containing the atom features.
     """
     features = onek_encoding_unk(atom.GetSymbol(), ATOM_FEATURES['atomic_num']) + \
         [1 if atom.GetIsAromatic() else 0] + \
+        onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
+        onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
+        onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
         [atom.GetMass() * 0.01]  # scaled to about the same range as other features
-    #        onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
-    #        onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
-    #        onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag'])
-    # features +=  onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
-    #        onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
-    if functional_groups is not None:
-        features += functional_groups
     return features
 
 
