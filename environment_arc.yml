@@ -46,11 +46,13 @@ dependencies:
   - pymongo
   - pyparsing
   - pyrdl
+  - pytest
   - python >=3.7
   - pytorch>=1.6.0
   - pyyaml
   - quantities
   - rdkit >=2019.09.2.0
+  - seaborn
   - scikit-learn
   - scipy
   - sphinx_rtd_theme
