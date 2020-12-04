@@ -16,10 +16,7 @@ from features.common import (ChiralType,
                              onek_encoding_unk)
 
 
-def atom_features(atom: Type[Atom],
-                  aromatic: bool = False,
-                  functional_groups: List[int] = None
-                  ) -> List[Union[bool, int, float]]:
+def atom_features(atom: Type[Atom], aromatic: bool = False) -> List[Union[bool, int, float]]:
     """
     Builds a feature vector for an atom.
 
@@ -33,15 +30,12 @@ def atom_features(atom: Type[Atom],
     """
 
     features = onek_encoding_unk(atom.symbol, ATOM_FEATURES['atomic_num']) + \
-                                [1 if aromatic else 0] + \
-                                [atom.mass * 10]  # atom.mass [=] kg. Multiply by 10 (hectograms) to scale to similar range as other features
-                            #        onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
-                            #        onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
-                            #        onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag'])
-                            # features +=  onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
-                            #        onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
-    if functional_groups is not None:
-        features += functional_groups
+        [1 if aromatic else 0] + \
+        onek_encoding_unk(len(atom.bonds), ATOM_FEATURES['degree']) + \
+        onek_encoding_unk(atom.charge, ATOM_FEATURES['formal_charge']) + \
+        onek_encoding_unk(sum([k.symbol == 'H' for k in atom.bonds.keys()]), ATOM_FEATURES['num_Hs']) + \
+        [atom.mass * 10]  # atom.mass [=] kg. Multiply by 10 (hectograms) to scale to similar range as other features
+
     return features
 
 
