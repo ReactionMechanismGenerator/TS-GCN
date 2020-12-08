@@ -110,6 +110,10 @@ class MolGraph:
         # extract reactant, ts, product
         r_mol, ts_mol, p_mol = mols
 
+        # compute properties with rdkit (only works if dataset is clean)
+        r_mol.UpdatePropertyCache()
+        p_mol.UpdatePropertyCache()
+
         # fake the number of "atoms" if we are collapsing substructures
         n_atoms = r_mol.GetNumAtoms()
 
