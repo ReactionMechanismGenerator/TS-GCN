@@ -51,7 +51,7 @@ def optimize(trial, args):
 
     # record parameters
     train_logger.info(f'\nModel parameters are:\n{dict_to_str(model_parameters)}\n')
-    save_yaml_file(os.path.join(args.log_dir, 'model_paramaters.yml'), model_parameters)
+    save_yaml_file(os.path.join(args.log_dir, 'model_parameters.yml'), model_parameters)
     train_logger.info(f'Optimizer parameters are:\n{optimizer}\n')
     train_logger.info(f'Scheduler state dict is:')
     if scheduler:
