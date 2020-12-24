@@ -112,7 +112,7 @@ def inference(r_mols: List[Chem.rdchem.Mol],
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # define paths to model parameters and state dictionary
     yaml_file_name = os.path.join(ts_gen_v2_path, 'best_model', 'model_parameters.yml')
-    state_dict = os.path.join(ts_gen_v2_path, 'best_model', 'best_model')
+    state_dict = os.path.join(ts_gen_v2_path, 'best_model', 'best_model.pt')
 
     # create the network with the best architecture from hyperopt and load the corresponding best weights
     with open(yaml_file_name, 'r') as f:

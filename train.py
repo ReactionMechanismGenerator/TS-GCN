@@ -91,7 +91,7 @@ for epoch in range(1, args.n_epochs):
     if val_loss <= best_val_loss:
         best_val_loss = val_loss
         best_epoch = epoch
-        # torch.save(model.state_dict(), os.path.join(log_dir, 'best_model'))
+        torch.save(model.state_dict(), os.path.join(log_dir, 'best_model.pt'))
 
 logger.info("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
 
