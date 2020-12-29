@@ -42,7 +42,7 @@ train_loader, val_loader = construct_loader(args)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # define paths
 # note that these weights are for a model trained only on the training set 
-yaml_file_name = 'best_model/model_paramaters.yml'
+yaml_file_name = 'best_model/model_parameters.yml'
 state_dict = 'best_model/epoch_95_state_dict'
 
 # create the network with the best architecture from hyperopt and load the corresponding best weights

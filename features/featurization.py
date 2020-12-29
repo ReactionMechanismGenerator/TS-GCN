@@ -1,93 +1,33 @@
-import os
 from argparse import Namespace
-from typing import List, Tuple, Union
-
-from rdkit import Chem
-from rdkit.Chem.rdchem import ChiralType
-
-import torch
-import numpy as np
 import glob
-
+import numpy as np
+import os
+from rdkit import Chem
+import torch
 import torch_geometric as tg
 from torch_geometric.data import Dataset, DataLoader
+from typing import List, Tuple, Union
 
-# Atom feature sizes
-ATOMIC_SYMBOLS = ['H', 'C', 'N', 'O']
-ATOM_FEATURES = {
-    'atomic_num': ATOMIC_SYMBOLS,
-    'degree': [0, 1, 2, 3, 4, 5],
-    'formal_charge': [-1, -2, 1, 2, 0],
-    'chiral_tag': [0, 1, 2, 3], 
-    'num_Hs': [0, 1, 2, 3, 4],
-    'hybridization': [
-        Chem.rdchem.HybridizationType.SP,
-        Chem.rdchem.HybridizationType.SP2,
-        Chem.rdchem.HybridizationType.SP3,
-        Chem.rdchem.HybridizationType.SP3D,
-        Chem.rdchem.HybridizationType.SP3D2
-    ],
-}
-CHIRALTAG_PARITY = {
-    ChiralType.CHI_TETRAHEDRAL_CW: +1,
-    ChiralType.CHI_TETRAHEDRAL_CCW: -1,
-    ChiralType.CHI_UNSPECIFIED: 0,
-    ChiralType.CHI_OTHER: 0, # default
-}
-
-# len(choices) + 1 to include room for uncommon values; + 2 at end for IsAromatic and mass
-ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2
-BOND_FDIM = 7
+from features.common import (ATOM_FEATURES,
+                             CHIRALTAG_PARITY,
+                             ATOM_FDIM,
+                             BOND_FDIM,
+                             onek_encoding_unk,
+                             )
 
 
-def get_atom_fdim(args: Namespace) -> int:
-    """
-    Gets the dimensionality of atom features.
-    :param: Arguments.
-    """
-    return ATOM_FDIM
-
-
-def get_bond_fdim(args: Namespace) -> int:
-    """
-    Gets the dimensionality of bond features.
-    :param: Arguments.
-    """
-    return BOND_FDIM
-
-
-def onek_encoding_unk(value: int, choices: List[int]) -> List[int]:
-    """
-    Creates a one-hot encoding.
-    :param value: The value for which the encoding should be one.
-    :param choices: A list of possible values.
-    :return: A one-hot encoding of the value in a list of length len(choices) + 1.
-    If value is not in the list of choices, then the final element in the encoding is 1.
-    """
-    encoding = [0] * (len(choices) + 1)
-    index = choices.index(value) if value in choices else -1
-    encoding[index] = 1
-
-    return encoding
-
-
-def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
+def atom_features(atom: Chem.rdchem.Atom) -> List[Union[bool, int, float]]:
     """
     Builds a feature vector for an atom.
     :param atom: An RDKit atom.
-    :param functional_groups: A k-hot vector indicating the functional groups the atom belongs to.
     :return: A list containing the atom features.
     """
     features = onek_encoding_unk(atom.GetSymbol(), ATOM_FEATURES['atomic_num']) + \
         [1 if atom.GetIsAromatic() else 0] + \
+        onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
+        onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
+        onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
         [atom.GetMass() * 0.01]  # scaled to about the same range as other features
-    #        onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
-    #        onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
-    #        onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag'])
-    # features +=  onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
-    #        onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
-    if functional_groups is not None:
-        features += functional_groups
     return features
 
 
@@ -156,19 +96,23 @@ class MolGraph:
         :param smiles: A smiles string.
         :param args: Arguments.
         """
-        self.n_atoms = 0  # number of atoms
-        self.n_bonds = 0  # number of bonds
-        self.f_atoms = []  # mapping from atom index to atom features
-        self.f_bonds = []  # mapping from bond index to concat(in_atom, bond) features
-        self.a2b = []  # mapping from atom index to incoming bond indices
-        self.b2a = []  # mapping from bond index to the index of the atom the bond is coming from
-        self.b2revb = []  # mapping from bond index to the index of the reverse bond
+        self.n_atoms = 0    # number of atoms
+        self.n_bonds = 0    # number of bonds
+        self.f_atoms = []   # mapping from atom index to atom features
+        self.f_bonds = []   # mapping from bond index to concat(in_atom, bond) features
+        self.a2b = []       # mapping from atom index to incoming bond indices
+        self.b2a = []       # mapping from bond index to the index of the atom the bond is coming from
+        self.b2revb = []    # mapping from bond index to the index of the reverse bond
         self.parity_atoms = []  # mapping from atom index to CW (+1), CCW (-1) or undefined tetra (0)
-        self.edge_index = []  # list of tuples indicating presence of bonds
+        self.edge_index = []    # list of tuples indicating presence of bonds
         self.y = []
 
         # extract reactant, ts, product
         r_mol, ts_mol, p_mol = mols
+
+        # compute properties with rdkit (only works if dataset is clean)
+        r_mol.UpdatePropertyCache()
+        p_mol.UpdatePropertyCache()
 
         # fake the number of "atoms" if we are collapsing substructures
         n_atoms = r_mol.GetNumAtoms()

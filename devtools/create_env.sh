@@ -1,8 +1,8 @@
 # This script does the following tasks:
 # 	- creates the conda
 # 	- prompts user for desired CUDA version
-# 	- installs PyTorch with specified CUDA version in the environment
-# 	- installs torch torch-geometric in the environment
+# 	- installs PyTorch with specified CUDA version in the environment: https://pytorch.org/get-started/locally/
+# 	- installs torch torch-geometric in the environment: https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
 
 
 # get OS type
@@ -19,8 +19,8 @@ echo "Running ${machine}..."
 
 # request user to select one of the supported CUDA versions
 # source: https://pytorch.org/get-started/locally/
-PS3='Please enter 1, 2, 3, or 4 to specify the desired CUDA version from the options above: '
-options=("9.2" "10.1" "10.2" "cpu" "Quit")
+PS3='Please enter 1, 2, 3, 4, or 5 to specify the desired CUDA version from the options above: '
+options=("9.2" "10.1" "10.2" "11.0" "cpu" "Quit")
 select opt in "${options[@]}"
 do
     case $opt in
@@ -37,6 +37,11 @@ do
         "10.2")
 			CUDA="cudatoolkit=10.2"
             CUDA_VERSION="cu102"
+            break
+            ;;
+        "11.0")
+            CUDA="cudatoolkit=11.0"
+            CUDA_VERSION="cu110"
             break
             ;;
         "cpu")
@@ -62,7 +67,7 @@ echo "Running: conda env create -f environment.yml"
 conda env create -f environment.yml
 
 # activate the environment to install torch-geometric
-source activate ts_gen_v2
+source activate ts_gen
 
 echo "Installing PyTorch with requested CUDA version..."
 echo "Running: conda install pytorch torchvision $CUDA -c pytorch"
@@ -74,8 +79,8 @@ echo "Using CUDA version: $CUDA_VERSION"
 TORCH_VERSION=$(python -c "import torch; print(torch.__version__)")
 echo "Using PyTorch version: $TORCH_VERSION"
 
-pip install torch-scatter==latest+$CUDA_VERSION -f https://pytorch-geometric.com/whl/torch-$TORCH_VERSION.html
-pip install torch-sparse==latest+$CUDA_VERSION -f https://pytorch-geometric.com/whl/torch-$TORCH_VERSION.html
-pip install torch-cluster==latest+$CUDA_VERSION -f https://pytorch-geometric.com/whl/torch-$TORCH_VERSION.html
-pip install torch-spline-conv==latest+$CUDA_VERSION -f https://pytorch-geometric.com/whl/torch-$TORCH_VERSION.html
+pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
+pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
+pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
+pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
 pip install torch-geometric

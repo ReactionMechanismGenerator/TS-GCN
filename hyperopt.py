@@ -51,7 +51,7 @@ def optimize(trial, args):
 
     # record parameters
     train_logger.info(f'\nModel parameters are:\n{dict_to_str(model_parameters)}\n')
-    save_yaml_file(os.path.join(args.log_dir, 'model_paramaters.yml'), model_parameters)
+    save_yaml_file(os.path.join(args.log_dir, 'model_parameters.yml'), model_parameters)
     train_logger.info(f'Optimizer parameters are:\n{optimizer}\n')
     train_logger.info(f'Scheduler state dict is:')
     if scheduler:
@@ -76,7 +76,7 @@ def optimize(trial, args):
         if val_loss <= best_val_loss:
             best_val_loss = val_loss
             best_epoch = epoch
-            torch.save(model.state_dict(), os.path.join(args.log_dir, f'epoch_{epoch}_state_dict'))
+            torch.save(model.state_dict(), os.path.join(args.log_dir, f'epoch_{epoch}_state_dict.pt'))
     train_logger.info("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
 
     train_logger.handlers = []

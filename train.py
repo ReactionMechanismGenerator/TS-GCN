@@ -62,7 +62,7 @@ optimizer, scheduler = get_optimizer_and_scheduler(args, model, len(train_loader
 
 # record parameters
 logger.info(f'\nModel parameters are:\n{dict_to_str(model_parameters)}\n')
-yaml_file_name = os.path.join(log_dir, 'model_paramaters.yml')
+yaml_file_name = os.path.join(log_dir, 'model_parameters.yml')
 save_yaml_file(yaml_file_name, model_parameters)
 logger.info(f'Optimizer parameters are:\n{optimizer}\n')
 logger.info(f'Scheduler state dict is:')
@@ -91,7 +91,7 @@ for epoch in range(1, args.n_epochs):
     if val_loss <= best_val_loss:
         best_val_loss = val_loss
         best_epoch = epoch
-        # torch.save(model.state_dict(), os.path.join(log_dir, 'best_model'))
+        torch.save(model.state_dict(), os.path.join(log_dir, 'best_model.pt'))
 
 logger.info("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
 
