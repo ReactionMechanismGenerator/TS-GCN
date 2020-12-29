@@ -28,7 +28,7 @@ echo "Running: conda env create -f environment.yml"
 conda env create -f travis_environment.yml
 
 # activate the environment to install torch-geometric
-source activate ts_gen_v2
+source activate ts_gen
 
 echo "Installing torch-geometric..."
 echo "Using CUDA version: $CUDA_VERSION"

@@ -16,7 +16,7 @@ from torch_geometric.data import DataLoader
 import yaml
 
 from model.G2C import G2C
-from model.common import ts_gen_v2_path
+from model.common import ts_gen_path
 from features.featurization import (atom_features,
                                     parity_features,
                                     bond_features,
@@ -111,8 +111,8 @@ def inference(r_mols: List[Chem.rdchem.Mol],
     # set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # define paths to model parameters and state dictionary
-    yaml_file_name = os.path.join(ts_gen_v2_path, 'best_model', 'model_parameters.yml')
-    state_dict = os.path.join(ts_gen_v2_path, 'best_model', 'best_model.pt')
+    yaml_file_name = os.path.join(ts_gen_path, 'best_model', 'model_parameters.yml')
+    state_dict = os.path.join(ts_gen_path, 'best_model', 'best_model.pt')
 
     # create the network with the best architecture from hyperopt and load the corresponding best weights
     with open(yaml_file_name, 'r') as f:

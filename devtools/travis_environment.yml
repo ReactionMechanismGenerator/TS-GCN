@@ -1,4 +1,4 @@
-name: ts_gen_v2
+name: ts_gen
 channels:
   - defaults
   - rdkit
