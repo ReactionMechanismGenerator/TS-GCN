@@ -31,7 +31,8 @@ conda env create -f travis_environment.yml
 echo "Checking which python"
 which python
 export PATH=$CONDA_PREFIX/bin:$PATH
-conda init bash
+CONDA_BASE=$(conda info --base)
+source $CONDA_BASE/etc/profile.d/conda.sh
 conda activate ts_gcn
 echo "Checking which python"
 which python
