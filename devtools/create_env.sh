@@ -67,6 +67,8 @@ echo "Running: conda env create -f environment.yml"
 conda env create -f environment.yml
 
 # activate the environment to install torch-geometric
+CONDA_BASE=$(conda info --base)
+source $CONDA_BASE/etc/profile.d/conda.sh
 conda activate ts_gcn
 
 echo "Installing PyTorch with requested CUDA version..."
