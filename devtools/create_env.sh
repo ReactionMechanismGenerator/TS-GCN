@@ -1,8 +1,8 @@
 # This script does the following tasks:
-# 	- creates the conda
+# 	- creates the conda environment
 # 	- prompts user for desired CUDA version
 # 	- installs PyTorch with specified CUDA version in the environment: https://pytorch.org/get-started/locally/
-# 	- installs torch torch-geometric in the environment: https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
+# 	- installs torch-geometric and the required dependencies in the environment: https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
 
 
 # get OS type
@@ -67,9 +67,14 @@ echo "Running: conda env create -f environment.yml"
 conda env create -f environment.yml
 
 # activate the environment to install torch-geometric
+echo "Checking which python"
+which python
+echo "Activating ts_gcn environment"
 CONDA_BASE=$(conda info --base)
 source $CONDA_BASE/etc/profile.d/conda.sh
 conda activate ts_gcn
+echo "Checking which python"
+which python
 
 echo "Installing PyTorch with requested CUDA version..."
 echo "Running: conda install pytorch torchvision $CUDA -c pytorch"

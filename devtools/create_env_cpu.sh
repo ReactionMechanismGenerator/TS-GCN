@@ -1,6 +1,7 @@
 # This script does the following tasks:
-# 	- creates the conda
-# 	- installs torch torch-geometric in the environment
+# 	- creates the conda environment
+# 	- installs PyTorch cpu version (i.e. CUDA None) https://pytorch.org/get-started/locally/
+# 	- installs torch-geometric and the required dependencies in the environment: https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
 
 
 # get OS type
@@ -24,8 +25,8 @@ fi
 CUDA_VERSION="cpu"
 
 echo "Creating conda environment..."
-echo "Running: conda env create -f environment.yml"
-conda env create -f travis_environment.yml
+echo "Running: conda env create -f cpu_environment.yml"
+conda env create -f cpu_environment.yml
 
 # activate the environment to install torch-geometric
 echo "Checking which python"
@@ -33,6 +34,7 @@ which python
 export PATH=$CONDA_PREFIX/bin:$PATH
 CONDA_BASE=$(conda info --base)
 source $CONDA_BASE/etc/profile.d/conda.sh
+echo "Activating ts_gcn environment"
 conda activate ts_gcn
 echo "Checking which python"
 which python
