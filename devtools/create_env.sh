@@ -85,6 +85,8 @@ echo "Using CUDA version: $CUDA_VERSION"
 # get PyTorch version
 TORCH_VERSION=$(python -c "import torch; print(torch.__version__)")
 echo "Using PyTorch version: $TORCH_VERSION"
+TORCH_VERSION="${TORCH_VERSION:0:4}0"
+echo "Installing PyTorch Geometric version: $TORCH_VERSION"
 
 pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
 pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
