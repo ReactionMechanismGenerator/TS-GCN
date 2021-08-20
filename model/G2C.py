@@ -6,18 +6,22 @@ import torch_geometric as tg
 
 # used to access the updated GCN later
 from model.GNN import GNN, MLP
+from model.utils import check_volume_constraints
+import numpy as np
+from rdkit import Chem, Geometry
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class G2C(torch.nn.Module):
-    def __init__(self, node_dim, edge_dim, hidden_dim=300, depth=3, n_layers=2):
+    def __init__(self, node_dim, edge_dim, hidden_dim=300, depth=3, n_layers=2, chiral_corrections=False):
         super(G2C, self).__init__()
         self.gnn = GNN(node_dim, edge_dim, hidden_dim, depth, n_layers)
         self.edge_mlp = MLP(hidden_dim, hidden_dim, n_layers)
         self.pred = Linear(hidden_dim, 2)
         self.act = torch.nn.Softplus()
         self.d_init = torch.nn.Parameter(torch.tensor([4.]), requires_grad=True).to(device)
+        self.chiral_corrections = chiral_corrections
 
         # learnable optimization params
         # self.T = torch.nn.Parameter(torch.tensor([50.]), requires_grad=True).to(device)
@@ -46,7 +50,33 @@ class G2C(torch.nn.Module):
         mask = diag_mask.clone()
         mask[data.batch, N_fill, N_fill] = 1  # fill diagonals
 
-        X = self.dist_nlsq(D.squeeze(-1), W.squeeze(-1), mask)
+        if self.chiral_corrections:
+            # ADDED SIGNED VOL CONSTRAINTS
+            X = torch.zeros([mask.size(0), mask.size(1), 3]).to(device)
+            break_counter = 0
+            sv_mask = torch.tensor([False] * (data.batch.max().item()+1))
+            while sv_mask.sum() < len(sv_mask):
+
+                X[~sv_mask] = self.dist_nlsq(D.squeeze(-1)[~sv_mask], W.squeeze(-1)[~sv_mask], mask[~sv_mask])
+                for i in range(len(sv_mask)):
+                    if not sv_mask[i]:
+
+                        r_mol = data.mols[i][0]
+                        p_mol = data.mols[i][2]
+                        model_ts = Chem.Mol(r_mol)
+
+                        for j in range(model_ts.GetNumAtoms()):
+                            x = X[i][j].double().cpu().detach().numpy()
+                            model_ts.GetConformer().SetAtomPosition(j, Geometry.Point3D(x[0], x[1], x[2]))
+
+                        sv_mask[i] = torch.tensor(check_volume_constraints((r_mol, model_ts, p_mol)))
+
+                break_counter += 1
+                if break_counter == 100:
+                    break
+        else:
+            X = self.dist_nlsq(D.squeeze(-1), W.squeeze(-1), mask)
+
         data.coords = X
 
         return diag_mask*self.distances(X), diag_mask
