@@ -26,6 +26,7 @@ parser.add_argument('--num_workers', type=int, default=2)
 parser.add_argument('--hidden_dim', type=int, default=100)
 parser.add_argument('--depth', type=int, default=3)
 parser.add_argument('--n_layers', type=int, default=2)
+parser.add_argument('--chiral_corrections', action='store_true', default=False)
 
 parser.add_argument('--optimizer', type=str, default='adam')
 parser.add_argument('--scheduler', type=str, default=None)
@@ -49,7 +50,8 @@ model_parameters = {'node_dim': train_loader.dataset.num_node_features,
                     'edge_dim': train_loader.dataset.num_edge_features,
                     'hidden_dim': args.hidden_dim,
                     'depth': args.depth,
-                    'n_layers': args.n_layers}
+                    'n_layers': args.n_layers,
+                    'chiral_corrections': args.chiral_corrections}
 model = G2C(**model_parameters).to(device)
 
 # multi gpu training
@@ -72,9 +74,6 @@ if scheduler:
     logger.info('')
 
 loss = torch.nn.MSELoss(reduction='sum')
-# alternative loss: MAE
-torch.nn.L1Loss(reduction='sum')  # MAE
-
 best_val_loss = math.inf
 best_epoch = 0
 
