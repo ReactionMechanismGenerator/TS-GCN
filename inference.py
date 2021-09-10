@@ -83,6 +83,7 @@ def featurization(r_mol: Chem.rdchem.Mol,
     data.x = torch.tensor(f_atoms, dtype=torch.float)
     data.edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
     data.edge_attr = torch.tensor(f_bonds, dtype=torch.float)
+    data.mols = [r_mol, None, p_mol]
 
     return data
 
