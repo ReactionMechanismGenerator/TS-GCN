@@ -25,8 +25,8 @@ fi
 CUDA_VERSION="cpu"
 
 echo "Creating conda environment..."
-echo "Running: conda env create -f cpu_environment.yml"
-conda env create -f cpu_environment.yml
+echo "Running: conda create -n ts_gcn python=3.7.11"
+conda create -n ts_gcn python=3.7.11
 
 # activate the environment to install torch-geometric
 echo "Checking which python"
@@ -39,16 +39,15 @@ conda activate ts_gcn
 echo "Checking which python"
 which python
 
-echo "Installing torch-geometric..."
-echo "Using CUDA version: $CUDA_VERSION"
-# get PyTorch version
-TORCH_VERSION=$(python -c "import torch; print(torch.__version__)")
-echo "Using PyTorch version: $TORCH_VERSION"
-TORCH_VERSION="${TORCH_VERSION:0:4}0"
-echo "Installing PyTorch Geometric version: $TORCH_VERSION"
+echo "Running: conda install pytorch==1.7.1 cpuonly -c pytorch"
+conda install pytorch==1.7.1 cpuonly -c pytorch
 
-pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
-pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
-pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
-pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH_VERSION}+${CUDA_VERSION}.html
+echo "Installing torch-scatter and torch-sparse..."
+pip install --verbose --no-cache-dir torch-scatter==2.0.7 torch-sparse==0.6.9 -f https://data.pyg.org/whl/torch-1.7.1+cpu.html
+
+echo "Installing torch-geometric..."
 pip install torch-geometric
+
+echo "Installing other dependencies..."
+conda env update -f cpu_environment.yml
+
