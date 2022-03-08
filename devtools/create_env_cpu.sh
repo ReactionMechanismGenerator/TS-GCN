@@ -25,8 +25,8 @@ fi
 CUDA_VERSION="cpu"
 
 echo "Creating conda environment..."
-echo "Running: conda create -n ts_gcn python=3.7.11"
-conda create -n ts_gcn python=3.7.11
+echo "Running: conda create -n ts_gcn python=3.7.11 -y"
+conda create -n ts_gcn python=3.7.11 -y
 
 # activate the environment to install torch-geometric
 echo "Checking which python"
@@ -39,8 +39,8 @@ conda activate ts_gcn
 echo "Checking which python"
 which python
 
-echo "Running: conda install pytorch==1.7.1 cpuonly -c pytorch"
-conda install pytorch==1.7.1 cpuonly -c pytorch
+echo "Running: conda install pytorch==1.7.1 cpuonly -c pytorch -y"
+conda install pytorch==1.7.1 cpuonly -c pytorch -y
 
 echo "Installing torch-scatter and torch-sparse..."
 pip install --verbose --no-cache-dir torch-scatter==2.0.7 torch-sparse==0.6.9 -f https://data.pyg.org/whl/torch-1.7.1+cpu.html
