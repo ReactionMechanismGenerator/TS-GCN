@@ -18,6 +18,9 @@ echo "Creating conda environment..."
 $COMMAND_PKG create -n ts_gcn python=3.7 -y
 
 # Activate the environment to install torch-geometric
+source ~/.bashrc
+CONDA_BASE=$(conda info --base)
+source $CONDA_BASE/etc/profile.d/conda.sh
 echo "Activating ts_gcn environment"
 conda activate ts_gcn
 
