@@ -31,7 +31,7 @@ def optimize(trial, args):
     # construct loader and set device
     train_loader, val_loader = construct_loader(args)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # build model
     model_parameters = {'node_dim': train_loader.dataset.num_node_features,
                         'edge_dim': train_loader.dataset.num_edge_features,

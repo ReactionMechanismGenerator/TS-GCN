@@ -40,7 +40,6 @@ train_loader, val_loader = construct_loader(args)
 
 # set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # define paths
 # note that these weights are for a model trained only on the training set 
 yaml_file_name = 'best_model/model_parameters.yml'
