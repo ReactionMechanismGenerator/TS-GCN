@@ -11,6 +11,7 @@ import numpy as np
 from rdkit import Chem, Geometry
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class G2C(torch.nn.Module):

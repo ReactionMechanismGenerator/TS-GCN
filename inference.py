@@ -111,6 +111,7 @@ def inference(r_mols: List[Chem.rdchem.Mol],
 
     # set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # define paths to model parameters and state dictionary
     yaml_file_name = os.path.join(ts_gcn_path, 'best_model', 'model_parameters.yml')
     state_dict = os.path.join(ts_gcn_path, 'best_model', 'best_model.pt')
