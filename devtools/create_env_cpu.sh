@@ -37,7 +37,7 @@ else
 fi
 # Create conda environment
 echo "Creating conda environment..."
-$COMMAND_PKG create -n ts_gcn python=3.7 -y
+$COMMAND_PKG create -n ts_gcn python=3.7 -c conda-forge -y
 
 # Activate the environment to install torch-geometric
 
@@ -50,7 +50,7 @@ fi
 
 # Install PyTorch
 echo "Installing PyTorch..."
-$COMMAND_PKG install pytorch==1.7.1 cpuonly -c pytorch -y
+$COMMAND_PKG install pytorch==1.7.1 cpuonly -c pytorch -c conda-forge -y
 
 # Install torch-scatter and torch-sparse
 echo "Installing torch-scatter and torch-sparse..."
