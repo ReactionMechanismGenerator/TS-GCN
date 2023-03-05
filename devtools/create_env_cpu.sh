@@ -1,28 +1,60 @@
+#!/bin/bash -l
+
 # This script does the following tasks:
 # 	- creates the conda environment
 # 	- installs PyTorch cpu version (i.e. CUDA None) https://pytorch.org/get-started/locally/
 # 	- installs torch-geometric and the required dependencies in the environment: https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
 
-# Check for package manager
-if command -v mamba >/dev/null 2>&1; then
+
+# Check if Micromamba is installed
+if [ -x "$(command -v micromamba)" ]; then
+    echo "Micromamba is installed."
+    COMMAND_PKG=micromamba
+# Check if Mamba is installed
+elif [ -x "$(command -v mamba)" ]; then
+    echo "Mamba is installed."
     COMMAND_PKG=mamba
-elif command -v conda >/dev/null 2>&1; then
+# Check if Conda is installed
+elif [ -x "$(command -v conda)" ]; then
+    echo "Conda is installed."
     COMMAND_PKG=conda
 else
-    echo "Error: mamba or conda is not installed. Please download and install mamba or conda - we strongly recommend mamba"
+    echo "Micromamba, Mamba, and Conda are not installed. Please download and install one of them - we strongly recommend Micromamba or Mamba."
     exit 1
 fi
 
+# Set up Conda/Micromamba environment
+if [ "$COMMAND_PKG" == "micromamba" ]; then
+    BASE=$(micromamba info --base)
+    # shellcheck source=/dev/null
+    source "$BASE/etc/profile.d/micromamba.sh"
+else
+    BASE=$(conda info --base)
+    # shellcheck source=/dev/null
+    source "$BASE/etc/profile.d/conda.sh"
+fi
 # Create conda environment
 echo "Creating conda environment..."
 $COMMAND_PKG create -n ts_gcn python=3.7 -y
 
 # Activate the environment to install torch-geometric
 source ~/.bashrc
-CONDA_BASE=$(conda info --base)
-source $CONDA_BASE/etc/profile.d/conda.sh
+# Set up Conda/Micromamba environment
+if [ "$COMMAND_PKG" == "micromamba" ]; then
+    BASE=$(micromamba info --base)
+    # shellcheck source=/dev/null
+    source "$BASE/etc/profile.d/micromamba.sh"
+else
+    BASE=$(conda info --base)
+    # shellcheck source=/dev/null
+    source "$BASE/etc/profile.d/conda.sh"
+fi
 echo "Activating ts_gcn environment"
-conda activate ts_gcn
+if [ "$COMMAND_PKG" == "micromamba" ]; then
+    micromamba activate ts_gcn
+else
+    conda activate ts_gcn
+fi
 
 # Install PyTorch
 echo "Installing PyTorch..."
@@ -38,4 +70,4 @@ pip install torch-geometric
 
 # Install other dependencies
 echo "Installing other dependencies..."
-$COMMAND_PKG env update -f cpu_environment.yml
+$COMMAND_PKG env update -f devtools/cpu_environment.yml
