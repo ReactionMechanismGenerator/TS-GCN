@@ -25,7 +25,8 @@ fi
 
 # Set up Conda/Micromamba environment
 if [ "$COMMAND_PKG" == "micromamba" ]; then
-    BASE=$(micromamba info --base)
+    micromamba activate base
+    BASE=$MAMBA_ROOT_PREFIX
     # shellcheck source=/dev/null
     source "$BASE/etc/profile.d/micromamba.sh"
 else
@@ -38,17 +39,7 @@ echo "Creating conda environment..."
 $COMMAND_PKG create -n ts_gcn python=3.7 -y
 
 # Activate the environment to install torch-geometric
-source ~/.bashrc
-# Set up Conda/Micromamba environment
-if [ "$COMMAND_PKG" == "micromamba" ]; then
-    BASE=$(micromamba info --base)
-    # shellcheck source=/dev/null
-    source "$BASE/etc/profile.d/micromamba.sh"
-else
-    BASE=$(conda info --base)
-    # shellcheck source=/dev/null
-    source "$BASE/etc/profile.d/conda.sh"
-fi
+
 echo "Activating ts_gcn environment"
 if [ "$COMMAND_PKG" == "micromamba" ]; then
     micromamba activate ts_gcn
