@@ -25,6 +25,7 @@ fi
 
 # Set up Conda/Micromamba environment
 if [ "$COMMAND_PKG" == "micromamba" ]; then
+    eval "$(micromamba shell hook --shell=bash)"
     micromamba activate base
     BASE=$MAMBA_ROOT_PREFIX
     # shellcheck source=/dev/null
